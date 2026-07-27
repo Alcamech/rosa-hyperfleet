@@ -69,18 +69,6 @@ resource "aws_security_group_rule" "valkey_eks_primary" {
   source_security_group_id = var.eks_cluster_primary_security_group_id
 }
 
-resource "aws_security_group_rule" "valkey_bastion" {
-  count = var.bastion_security_group_id != "" ? 1 : 0
-
-  type                     = "ingress"
-  description              = "Valkey from bastion"
-  from_port                = 6379
-  to_port                  = 6379
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.valkey.id
-  source_security_group_id = var.bastion_security_group_id
-}
-
 # Subnet Group
 resource "aws_elasticache_subnet_group" "valkey" {
   name       = "${var.cluster_id}-valkey"

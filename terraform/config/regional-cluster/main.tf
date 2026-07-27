@@ -481,7 +481,6 @@ module "elasticache_valkey" {
 
   eks_cluster_security_group_id         = module.vpc.cluster_security_group_id
   eks_cluster_primary_security_group_id = module.regional_cluster.node_security_group_id
-  bastion_security_group_id             = var.enable_bastion ? module.bastion[0].security_group_id : ""
 
   node_type      = var.valkey_node_type
   engine_version = var.valkey_engine_version

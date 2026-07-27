@@ -27,12 +27,6 @@ variable "eks_cluster_primary_security_group_id" {
   type        = string
 }
 
-variable "bastion_security_group_id" {
-  description = "Bastion security group ID for break-glass access. Empty string to skip."
-  type        = string
-  default     = ""
-}
-
 variable "node_type" {
   description = "ElastiCache node type"
   type        = string
