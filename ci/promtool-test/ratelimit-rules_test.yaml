@@ -4,32 +4,53 @@ rule_files:
   - rules.yaml
 
 tests:
-  # RateLimitValkeyDown fires when failure_mode_allowed requests appear for > 2m
+  # RateLimitFailOpenActive fires when >20% of requests are fail-open for >5m
+  # 100% fail-open: all requests are failure_mode_allowed, none are ok
   - interval: 1m
     input_series:
       - series: 'ratelimit_requests_total{result="failure_mode_allowed", method="GET", path="/api/v0/clusters"}'
-        values: "0+1x10"
+        values: "0+10x15"
     alert_rule_test:
-      - eval_time: 3m
-        alertname: RateLimitValkeyDown
+      - eval_time: 6m
+        alertname: RateLimitFailOpenActive
         exp_alerts:
           - exp_labels:
               severity: critical
-              method: GET
-              path: /api/v0/clusters
-              result: failure_mode_allowed
             exp_annotations:
-              summary: "Rate limiting is bypassed — Valkey unreachable"
-              description: "Platform API rate limiter is failing open because Valkey (ElastiCache) is unreachable. All requests are being allowed without rate limiting. Method=GET, path=/api/v0/clusters."
+              summary: "Rate limit enforcement bypassed (>20% fail-open)"
+              description: "100% of rate-limited traffic passing without enforcement for >5m. Check Valkey connectivity."
 
-  # RateLimitValkeyDown does NOT fire when there are no failure_mode_allowed requests
+  # RateLimitFailOpenActive does NOT fire when fail-open ratio is below 20%
+  # 10% fail-open: 1 failure_mode_allowed per 9 ok
+  - interval: 1m
+    input_series:
+      - series: 'ratelimit_requests_total{result="failure_mode_allowed", method="GET", path="/api/v0/clusters"}'
+        values: "0+1x15"
+      - series: 'ratelimit_requests_total{result="ok", method="GET", path="/api/v0/clusters"}'
+        values: "0+9x15"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RateLimitFailOpenActive
+        exp_alerts: []
+
+  # RateLimitFailOpenActive does NOT fire when there are no failure_mode_allowed requests
   - interval: 1m
     input_series:
       - series: 'ratelimit_requests_total{result="ok", method="GET", path="/api/v0/clusters"}'
-        values: "0+10x10"
+        values: "0+10x15"
     alert_rule_test:
-      - eval_time: 5m
-        alertname: RateLimitValkeyDown
+      - eval_time: 10m
+        alertname: RateLimitFailOpenActive
+        exp_alerts: []
+
+  # RateLimitFailOpenActive does NOT fire before 5m even at 100% fail-open
+  - interval: 1m
+    input_series:
+      - series: 'ratelimit_requests_total{result="failure_mode_allowed", method="GET", path="/api/v0/clusters"}'
+        values: "0+10x4"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RateLimitFailOpenActive
         exp_alerts: []
 
   # RateLimitHighDenialRatio fires when > 50% of requests are over_limit for > 10m

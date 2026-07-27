@@ -17,8 +17,8 @@ platformApi:
   app:
     name: platform-api
     image:
-      repository: quay.io/travi/rosa-hyperfleet-api
-      tag: "ratelimit"
+      repository: quay.io/cbusse_openshift/rosa-regional-platform-api
+      tag: "pgruntime"
       pullPolicy: Always
 
     # Application arguments
@@ -113,6 +113,7 @@ platformApi:
     redisEndpoint: ""
     config: |
       enabled: true
+      redisTimeout: 20 # milliseconds — fail open faster than the 50ms code default if Valkey is degraded
       exemptAccounts: []
       default:
         rate: 20

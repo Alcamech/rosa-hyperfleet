@@ -11,14 +11,19 @@ spec:
   groups:
     - name: ratelimit
       rules:
-        - alert: RateLimitValkeyDown
-          expr: rate(ratelimit_requests_total{result="failure_mode_allowed"}[5m]) > 0
-          for: 2m
+        - alert: RateLimitFailOpenActive
+          expr: |
+            (
+              sum(rate(ratelimit_requests_total{result="failure_mode_allowed"}[5m]))
+              / sum(rate(ratelimit_requests_total[5m]))
+            ) > 0.20
+            and sum(rate(ratelimit_requests_total[5m])) > 0
+          for: 5m
           labels:
             severity: critical
           annotations:
-            summary: "Rate limiting is bypassed — Valkey unreachable"
-            description: "Platform API rate limiter is failing open because Valkey (ElastiCache) is unreachable. All requests are being allowed without rate limiting. Method={{ "{{" }} $labels.method {{ "}}" }}, path={{ "{{" }} $labels.path {{ "}}" }}."
+            summary: "Rate limit enforcement bypassed (>20% fail-open)"
+            description: "{{ "{{" }} $value | humanizePercentage {{ "}}" }} of rate-limited traffic passing without enforcement for >5m. Check Valkey connectivity."
 
         - alert: RateLimitHighDenialRatio
           expr: |
@@ -27,6 +32,7 @@ spec:
               /
               sum by(method, path) (rate(ratelimit_requests_total[5m]))
             ) > 0.5
+            and sum by(method, path) (rate(ratelimit_requests_total[5m])) > 0
           for: 10m
           labels:
             severity: warning
@@ -41,6 +47,7 @@ spec:
               /
               sum by(method, path, pod) (rate(ratelimit_requests_total[5m]))
             ) > 0.7
+            and sum by(method, path, pod) (rate(ratelimit_requests_total[5m])) > 0
           for: 5m
           labels:
             severity: warning
