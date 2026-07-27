@@ -200,6 +200,9 @@ module "ecs_bootstrap" {
   loki_kms_key_arn   = module.loki_infrastructure.kms_key_arn
 
   management_clusters = var.management_clusters
+
+  rc_aws_account_id = var.target_account_id
+  redis_endpoint    = var.enable_rate_limit_redis ? "${module.elasticache_valkey[0].endpoint}:${module.elasticache_valkey[0].port}" : ""
 }
 
 # =============================================================================
@@ -462,6 +465,26 @@ module "hyperfleet_db" {
   skip_final_snapshot          = var.hyperfleet_db_skip_final_snapshot
   performance_insights_enabled = var.hyperfleet_db_performance_insights_enabled
   monitoring_interval          = var.hyperfleet_db_monitoring_interval
+}
+
+# =============================================================================
+# ElastiCache Valkey — rate limit counters (GCRA)
+# =============================================================================
+
+module "elasticache_valkey" {
+  count  = var.enable_rate_limit_redis ? 1 : 0
+  source = "../../modules/elasticache-valkey"
+
+  cluster_id         = var.regional_id
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+
+  eks_cluster_security_group_id         = module.vpc.cluster_security_group_id
+  eks_cluster_primary_security_group_id = module.regional_cluster.node_security_group_id
+  bastion_security_group_id             = var.enable_bastion ? module.bastion[0].security_group_id : ""
+
+  node_type      = var.valkey_node_type
+  engine_version = var.valkey_engine_version
 }
 
 # =============================================================================
