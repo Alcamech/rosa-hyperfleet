@@ -187,9 +187,9 @@ The Platform API implements per-account rate limiting using the GCRA (Generic Ce
 
 | File                                                         | Purpose                                                                  |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `terraform/modules/hyperfleet-infrastructure/elasticache.tf` | ElastiCache Valkey replication group, security groups, parameter group   |
-| `terraform/modules/hyperfleet-infrastructure/variables.tf`   | `enable_rate_limit_redis`, `valkey_node_type`, `valkey_engine_version`   |
-| `terraform/modules/hyperfleet-infrastructure/outputs.tf`     | Valkey endpoint and port outputs                                         |
+| `terraform/modules/elasticache-valkey/main.tf`               | ElastiCache Valkey replication group, KMS, security groups, parameter group |
+| `terraform/modules/elasticache-valkey/variables.tf`          | `cluster_id`, `vpc_id`, `node_type`, `engine_version`                      |
+| `terraform/modules/elasticache-valkey/outputs.tf`            | Valkey endpoint and port outputs                                           |
 | `scripts/bootstrap-argocd.sh`                                | Threads Valkey endpoint from Terraform outputs to ECS bootstrap env vars |
 | `terraform/modules/ecs-bootstrap/main.tf`                    | Writes `redis_endpoint` annotation on the ArgoCD cluster secret          |
 | `config/templates/argocd-bootstrap/applicationset.yaml.j2`   | Reads `redis_endpoint` annotation into Helm valuesObject                 |

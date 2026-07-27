@@ -7,11 +7,47 @@
 # No persistence, no AUTH, no backups — counters are ephemeral by design.
 # =============================================================================
 
-# KMS key for ElastiCache encryption at rest (FedRAMP SC-13)
+# Resolve current account ID for the KMS key policy
+data "aws_caller_identity" "current" {}
+
+# KMS key for ElastiCache encryption at rest (FedRAMP SC-13).
+# Explicit key policy scopes usage to ElastiCache (CKV2_AWS_64) rather than
+# relying on the implicit default that grants kms:* to the account root.
 resource "aws_kms_key" "elasticache" {
   description             = "KMS key for ElastiCache Valkey encryption at rest (FedRAMP SC-13)"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowElastiCacheAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "elasticache.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey*",
+          "kms:ReEncrypt*",
+          "kms:CreateGrant"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name      = "${var.cluster_id}-elasticache-valkey"
@@ -31,14 +67,6 @@ resource "aws_security_group" "valkey" {
   vpc_id      = var.vpc_id
 
   revoke_rules_on_delete = false
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   tags = {
     Name      = "${var.cluster_id}-valkey-sg"
