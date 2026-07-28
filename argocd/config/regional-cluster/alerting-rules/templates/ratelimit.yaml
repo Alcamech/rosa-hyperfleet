@@ -20,7 +20,7 @@ spec:
             and sum(rate(ratelimit_requests_total[5m])) > 0
           for: 5m
           labels:
-            severity: critical
+            severity: warning
           annotations:
             summary: "Rate limit enforcement bypassed (>20% fail-open)"
             description: "{{ "{{" }} $value | humanizePercentage {{ "}}" }} of rate-limited traffic passing without enforcement for >5m. Check Valkey connectivity."

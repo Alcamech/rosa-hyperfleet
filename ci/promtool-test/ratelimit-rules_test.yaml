@@ -15,7 +15,7 @@ tests:
         alertname: RateLimitFailOpenActive
         exp_alerts:
           - exp_labels:
-              severity: critical
+              severity: warning
             exp_annotations:
               summary: "Rate limit enforcement bypassed (>20% fail-open)"
               description: "100% of rate-limited traffic passing without enforcement for >5m. Check Valkey connectivity."
