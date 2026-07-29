@@ -352,7 +352,7 @@ resource "aws_route53_record" "regional_delegation" {
 #
 # Each shard is a separate Route53 HostedZone under the regional zone,
 # providing ~10k records per shard. MC operators (external-dns, cert-manager)
-# create cluster records in shards. CLM assigns clusters to shards.
+# create cluster records in shards. hyperfleet-operator assigns clusters to shards.
 # =============================================================================
 
 resource "aws_route53_zone" "zone_shard" {

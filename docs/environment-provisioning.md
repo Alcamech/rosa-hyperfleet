@@ -167,9 +167,7 @@ Expected output:
 ```
 NAMESPACE   NAME                  SYNC STATUS   HEALTH STATUS
 argocd      argocd                Synced        Healthy
-argocd      hyperfleet-adapter1   Synced        Healthy
-argocd      hyperfleet-api        Synced        Healthy
-argocd      hyperfleet-sentinel   Synced        Healthy
+argocd      hyperfleet            Synced        Healthy
 argocd      monitoring          Synced        Healthy
 argocd      platform-api        Synced        Healthy
 argocd      root                Synced        Healthy
