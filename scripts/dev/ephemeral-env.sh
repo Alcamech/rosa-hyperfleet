@@ -194,12 +194,16 @@ setup_override_mount() {
 fetch_github_token() {
     if [[ -z "${GITHUB_TOKEN:-}" ]]; then
         echo "Fetching GitHub token from SSM Parameter Store..."
+        local ssm_err
+        ssm_err=$(mktemp)
         GITHUB_TOKEN=$(aws ssm get-parameter \
             --name "$GITHUB_TOKEN_SECRET" \
             --with-decryption \
             --profile rrp-ephemeral-central \
-            --query Parameter.Value --output text 2>/dev/null) \
-            || die "Failed to fetch GitHub token from SSM."
+            --query Parameter.Value --output text 2>"$ssm_err") \
+            || die "Failed to fetch GitHub token from SSM.
+$(cat "$ssm_err")"
+        rm -f "$ssm_err"
     fi
     export GITHUB_TOKEN
 }
