@@ -551,8 +551,9 @@ module "cloudwatch_exporter" {
 module "regional_oidc" {
   source = "../../modules/regional-oidc"
 
-  regional_id = var.regional_id
-  mc_ou_path  = var.mc_ou_path
+  regional_id   = var.regional_id
+  mc_ou_path    = var.mc_ou_path
+  force_destroy = var.environment == "ephemeral"
 }
 
 # =============================================================================
