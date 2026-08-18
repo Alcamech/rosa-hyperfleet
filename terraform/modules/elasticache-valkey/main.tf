@@ -89,7 +89,7 @@ resource "aws_security_group_rule" "valkey_eks_cluster" {
 
 resource "aws_security_group_rule" "valkey_eks_primary" {
   type                     = "ingress"
-  description              = "Valkey from EKS cluster primary security group"
+  description              = "Valkey from EKS cluster primary security group (Auto Mode)"
   from_port                = 6379
   to_port                  = 6379
   protocol                 = "tcp"
