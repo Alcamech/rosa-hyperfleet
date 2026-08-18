@@ -1,0 +1,43 @@
+# Karpenter subchart values
+# These values are passed to the upstream Karpenter Helm chart dependency.
+#
+# Values from ApplicationSet valuesObject are merged with this file:
+# - karpenter.settings.clusterName
+# - karpenter.settings.interruptionQueue
+#
+# Auth is handled by Pod Identity (aws_eks_pod_identity_association in
+# terraform/modules/eks-cluster/iam.tf) — no IRSA annotation needed.
+
+karpenter:
+  settings:
+    # clusterName and interruptionQueue are injected by ApplicationSet valuesObject
+    clusterName: ""
+    interruptionQueue: ""
+
+  replicas: 2
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: karpenter
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: karpenter
+
+  controller:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+  serviceMonitor:
+    enabled: true

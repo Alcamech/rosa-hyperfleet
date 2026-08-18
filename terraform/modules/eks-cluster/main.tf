@@ -1,7 +1,7 @@
 # =============================================================================
 # EKS Cluster Configuration
 #
-# Creates a fully private EKS cluster with Auto Mode enabled.
+# Creates a fully private EKS cluster with self-managed Karpenter compute.
 # Includes KMS encryption for secrets, proper networking,
 # and managed addons for a complete cluster deployment.
 # VPC and networking are provided as inputs from the vpc module.
@@ -111,30 +111,6 @@ resource "aws_eks_cluster" "main" {
     security_group_ids      = [var.cluster_security_group_id]
   }
 
-  compute_config {
-    enabled       = true
-    node_pools    = ["system"]
-    node_role_arn = aws_iam_role.eks_auto_mode_node.arn
-
-    # TODO: Enable IMDSv2 enforcement for security compliance
-    # node_pool_defaults configuration for launch template metadata_options
-    # is not yet supported in AWS provider 6.x for EKS Auto Mode.
-    # Will be implemented when provider support becomes available.
-    # See https://github.com/hashicorp/terraform-provider-aws/issues/40486
-  }
-
-  kubernetes_network_config {
-    elastic_load_balancing {
-      enabled = true
-    }
-  }
-
-  storage_config {
-    block_storage {
-      enabled = true
-    }
-  }
-
   enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   depends_on = [
@@ -142,6 +118,93 @@ resource "aws_eks_cluster" "main" {
     aws_cloudwatch_log_group.eks_cluster,
     aws_kms_key.eks_secrets
   ]
+
+  # Karpenter nodes are created outside Terraform by the in-cluster controller.
+  # We terminate them directly (rather than draining via NodeClaim deletion)
+  # so the VPC CNI never gets a chance to release its ENIs gracefully. We must
+  # clean up those orphaned ENIs ourselves or the subnet/VPC teardown will hang.
+  provisioner "local-exec" {
+    when        = destroy
+    on_failure  = fail
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+
+      if ! command -v aws >/dev/null 2>&1; then
+        echo "ERROR: aws CLI not found -- install awscli to proceed" >&2
+        exit 1
+      fi
+      if ! command -v timeout >/dev/null 2>&1; then
+        echo "ERROR: timeout not found -- install coreutils to proceed" >&2
+        exit 1
+      fi
+
+      CLUSTER_NAME="${self.name}"
+      REGION=$(echo "${self.arn}" | cut -d: -f4)
+
+      echo "Terminating Karpenter EC2 instances for cluster: $CLUSTER_NAME"
+      INSTANCE_IDS=$(aws ec2 describe-instances \
+        --region "$REGION" \
+        --filters \
+          "Name=tag:kubernetes.io/cluster/$CLUSTER_NAME,Values=owned" \
+          "Name=tag-key,Values=karpenter.sh/nodeclaim" \
+          "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+        --query 'Reservations[].Instances[].InstanceId' \
+        --output text)
+
+      if [ -z "$INSTANCE_IDS" ]; then
+        echo "No Karpenter-managed instances found."
+      else
+        echo "Terminating: $INSTANCE_IDS"
+        aws ec2 terminate-instances --region "$REGION" --instance-ids $INSTANCE_IDS
+        if ! timeout 300 aws ec2 wait instance-terminated --region "$REGION" --instance-ids $INSTANCE_IDS; then
+          echo "ERROR: instances did not reach terminated state within 300s: $INSTANCE_IDS" >&2
+          exit 1
+        fi
+        echo "Instances terminated."
+      fi
+
+      echo "Waiting for VPC CNI ENIs to be released..."
+
+      # VPC CNI trunk/branch ENIs are cleaned up asynchronously by AWS after
+      # instance termination. Poll until they're gone or we can delete them.
+      for attempt in $(seq 1 18); do
+        ENI_IDS=$(aws ec2 describe-network-interfaces \
+          --region "$REGION" \
+          --filters "Name=tag:cluster.k8s.amazonaws.com/name,Values=$CLUSTER_NAME" \
+          --query 'NetworkInterfaces[?Status==`available`].NetworkInterfaceId' \
+          --output text)
+
+        if [ -n "$ENI_IDS" ]; then
+          echo "Deleting detached ENIs: $ENI_IDS"
+          for eni in $ENI_IDS; do
+            aws ec2 delete-network-interface --region "$REGION" --network-interface-id "$eni" 2>/dev/null || true
+          done
+        fi
+
+        REMAINING=$(aws ec2 describe-network-interfaces \
+          --region "$REGION" \
+          --filters "Name=tag:cluster.k8s.amazonaws.com/name,Values=$CLUSTER_NAME" \
+          --query 'NetworkInterfaces[].NetworkInterfaceId' \
+          --output text)
+
+        if [ -z "$REMAINING" ]; then
+          echo "All ENIs cleaned up."
+          break
+        fi
+
+        echo "Attempt $attempt/18: ENIs still attached, waiting 10s..."
+        sleep 10
+      done
+
+      if [ -n "$REMAINING" ]; then
+        echo "ERROR: ENIs still present after 3 minutes: $REMAINING" >&2
+        echo "Delete them manually, then re-run terraform destroy." >&2
+        exit 1
+      fi
+      echo "Done."
+    EOT
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -163,16 +226,96 @@ resource "aws_eks_cluster" "main" {
 resource "aws_eks_addon" "coredns" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "coredns"
+  depends_on   = [aws_eks_node_group.karpenter_bootstrap]
 }
 
 resource "aws_eks_addon" "metrics_server" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "metrics-server"
+  depends_on   = [aws_eks_node_group.karpenter_bootstrap]
 }
 
 resource "aws_eks_addon" "pod_identity" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "eks-pod-identity-agent"
+  depends_on   = [aws_eks_node_group.karpenter_bootstrap]
+}
+
+# Fixed-size node group for Karpenter + ArgoCD (system-cluster-critical).
+# Karpenter provisions all other nodes.
+# -----------------------------------------------------------------------------
+
+resource "aws_launch_template" "karpenter_bootstrap" {
+  name_prefix = "${local.cluster_id}-karpenter-bootstrap-"
+
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      encrypted   = true
+      volume_type = "gp3"
+    }
+  }
+}
+
+resource "aws_eks_node_group" "karpenter_bootstrap" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${local.cluster_id}-karpenter-bootstrap"
+  node_role_arn   = aws_iam_role.karpenter_node.arn
+  subnet_ids      = var.private_subnet_ids
+
+  ami_type       = "AL2023_x86_64_STANDARD"
+  instance_types = ["m7i.xlarge"]
+
+  launch_template {
+    id      = aws_launch_template.karpenter_bootstrap.id
+    version = aws_launch_template.karpenter_bootstrap.latest_version
+  }
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 2
+  }
+
+  tags = {
+    "karpenter.sh/discovery" = aws_eks_cluster.main.name
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.karpenter_node_managed,
+    aws_eks_addon.vpc_cni,
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Explicit Core Addons (Karpenter mode only)
+#
+# bootstrap_self_managed_addons = false prevents EKS from auto-installing these.
+# Auto Mode clusters receive VPC CNI and kube-proxy from the managed control
+# plane; Karpenter clusters must declare them explicitly.
+# -----------------------------------------------------------------------------
+
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "vpc-cni"
+}
+
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "kube-proxy"
+
+  depends_on = [aws_eks_node_group.karpenter_bootstrap]
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "aws-ebs-csi-driver"
+
+  depends_on = [aws_eks_node_group.karpenter_bootstrap, aws_eks_addon.pod_identity, aws_eks_pod_identity_association.ebs_csi]
 }
 
 # AWS Secrets Store CSI Driver Provider (e.g. for kube-applier or service secret mounting)
@@ -187,4 +330,6 @@ resource "aws_eks_addon" "aws_secrets_store_csi_driver_provider" {
       }
     }
   })
+
+  depends_on = [aws_eks_node_group.karpenter_bootstrap]
 }

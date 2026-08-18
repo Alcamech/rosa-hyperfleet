@@ -1,5 +1,5 @@
-# ECS Bootstrap Module for ArgoCD
-# Provides ECS Fargate infrastructure for external bootstrap execution
+# ECS Fargate infrastructure for bootstrapping ArgoCD on private EKS clusters.
+# See docs/design/fully-private-eks-bootstrap.md for architecture.
 
 locals {
   bootstrap_container_name = "bootstrap"
@@ -69,7 +69,7 @@ resource "aws_cloudwatch_log_group" "bootstrap" {
   depends_on = [aws_kms_key.bootstrap_logs]
 }
 
-# ECS Task Definition for bootstrap execution
+# Idempotent task: installs/updates ArgoCD, the cluster secret, and root Application.
 resource "aws_ecs_task_definition" "bootstrap" {
   family                   = "${var.cluster_id}-bootstrap"
   network_mode             = "awsvpc"
@@ -103,30 +103,10 @@ resource "aws_ecs_task_definition" "bootstrap" {
           # Configure kubectl for EKS
           aws eks update-kubeconfig --name $CLUSTER_NAME
 
-          # Seed the FIPS NodePool only on first bootstrap. On subsequent
-          # runs (resync), ArgoCD owns this resource via the eks-nodepool
-          # chart — we must not re-apply it to avoid Server-Side Apply
-          # ownership conflicts. When creating, we pass the environment
-          # values file so the initial NodePool matches what ArgoCD will
-          # enforce, avoiding Karpenter provisioning nodes with default
-          # instance types before ArgoCD syncs.
-          if ! kubectl get nodepool workloads 2>/dev/null; then
-            echo "Applying FIPS NodeClass and workloads NodePool from chart..."
-            _NODEPOOL_VALUES="$REPO_DIR/deploy/$ENVIRONMENT/$REGION_DEPLOYMENT/argocd-values-$CLUSTER_TYPE.yaml"
-            _VALUES_FLAG=""
-            [ -f "$_NODEPOOL_VALUES" ] && _VALUES_FLAG="-f $_NODEPOOL_VALUES"
-            helm template eks-nodepool "$REPO_DIR/argocd/config/$CLUSTER_TYPE/eks-nodepool" \
-              --set global.cluster_name="$CLUSTER_NAME" \
-              $_VALUES_FLAG \
-              | kubectl apply --server-side -f -
-            echo "✓ FIPS NodePool applied"
-          else
-            echo "✓ FIPS NodePool already exists, skipping (managed by ArgoCD)"
-          fi
-
-          # Wait for coredns and metrics-server (managed by the built-in system pool)
-          # to be active before installing ArgoCD.
-          for ADDON in coredns metrics-server; do
+          # Wait for essential addons on the bootstrap node group before
+          # installing ArgoCD. Pod Identity agent must be active so that
+          # workloads deployed by ArgoCD (LBC, EBS CSI) can authenticate.
+          for ADDON in coredns metrics-server eks-pod-identity-agent; do
             echo "Waiting for $ADDON to be active..."
             aws eks wait addon-active \
               --cluster-name "$CLUSTER_NAME" \
@@ -135,7 +115,6 @@ resource "aws_ecs_task_definition" "bootstrap" {
             echo "✓ $ADDON active"
           done
 
-          # Check if ArgoCD already exists
           if ! kubectl get deployment argocd-server -n argocd 2>/dev/null; then
             echo "Installing ArgoCD from repo chart..."
 
@@ -146,22 +125,15 @@ resource "aws_ecs_task_definition" "bootstrap" {
             helm repo add argo https://argoproj.github.io/argo-helm
             helm dependency build "$REPO_DIR/argocd/config/shared/argocd"
 
-            # Install using the same chart that the self-managed ArgoCD app
-            # uses (argocd/config/shared/argocd/), with tracking-id annotations
-            # so the self-managed ArgoCD app can adopt these resources.
-            # redisSecretInit is enabled here to create the Redis auth secret;
-            # the self-managed ArgoCD app has it disabled and prunes the
-            # completed Job on adoption.
+            # tracking-id annotations let the self-managed ArgoCD app adopt these resources.
+            # redisSecretInit creates the Redis auth secret (disabled in the self-managed app).
             helm upgrade --install argocd "$REPO_DIR/argocd/config/shared/argocd" \
               --namespace argocd \
               --set argo-cd.redisSecretInit.enabled=true \
-              --set 'argo-cd.redisSecretInit.tolerations[0].key=CriticalAddonsOnly' \
-              --set 'argo-cd.redisSecretInit.tolerations[0].operator=Exists' \
-              --set 'argo-cd.redisSecretInit.tolerations[0].effect=NoSchedule' \
               --set-string 'argo-cd.controller.annotations.argocd\.argoproj\.io/tracking-id=argocd:argoproj.io/Application:argocd/argocd' \
               --set-string 'argo-cd.server.annotations.argocd\.argoproj\.io/tracking-id=argocd:argoproj.io/Application:argocd/argocd' \
               --set-string 'argo-cd.repoServer.annotations.argocd\.argoproj\.io/tracking-id=argocd:argoproj.io/Application:argocd/argocd' \
-              --wait --timeout=5m
+              --wait --timeout=10m
 
             echo "✓ ArgoCD installation complete"
 
@@ -226,6 +198,7 @@ resource "aws_ecs_task_definition" "bootstrap" {
               sre_alb_dns_name: "$SRE_ALB_DNS_NAME"
               sre_domain: "$SRE_DOMAIN"
               redis_endpoint: "$REDIS_ENDPOINT"
+              vpc_id: "$VPC_ID"
           type: Opaque
           stringData:
             name: in-cluster
@@ -298,6 +271,10 @@ resource "aws_ecs_task_definition" "bootstrap" {
         {
           name  = "REDIS_ENDPOINT"
           value = var.redis_endpoint
+        },
+        {
+          name  = "VPC_ID"
+          value = var.vpc_id
         }
       ]
 

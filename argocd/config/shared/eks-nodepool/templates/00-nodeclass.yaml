@@ -1,0 +1,23 @@
+{{- $clusterName := required "global.cluster_name must be set via ApplicationSet valuesObject" .Values.global.cluster_name -}}
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: bottlerocket-fips
+  annotations:
+    # Karpenter CRD may not exist yet when ArgoCD dry-runs this resource
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  # Karpenter alias doesn't support FIPS variants: https://github.com/aws/karpenter-provider-aws/issues/8198
+  amiFamily: Bottlerocket
+  amiSelectorTerms:
+    - name: bottlerocket-aws-k8s-1.34-fips-x86_64-*
+  instanceProfile: {{ $clusterName }}-karpenter-node-role
+  subnetSelectorTerms:
+    - tags:
+        kubernetes.io/cluster/{{ $clusterName }}: owned
+  securityGroupSelectorTerms:
+    - tags:
+        aws:eks:cluster-name: {{ $clusterName }}
+  metadataOptions:
+    httpTokens: required
+    httpPutResponseHopLimit: 2

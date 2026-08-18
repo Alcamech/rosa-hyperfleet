@@ -5,6 +5,9 @@ argo-cd:
   ha:
     enabled: true
 
+  global:
+    priorityClassName: system-cluster-critical
+
   # Server configuration
   server:
     autoscaling:
@@ -136,7 +139,18 @@ argo-cd:
         cpu: 50m
         memory: 64Mi
 
-  # Redis configuration
+  # Redis HA configuration (enabled via ha.enabled=true above).
+  # redis-ha is a subchart and does not inherit global.priorityClassName.
+  redis-ha:
+    enabled: true
+    replicas: 2
+    hardAntiAffinity: false
+    priorityClassName: system-cluster-critical
+    haproxy:
+      hardAntiAffinity: false
+      priorityClassName: system-cluster-critical
+
+  # redis key kept for non-HA mode reference (unused when ha.enabled=true)
   redis:
     resources:
       limits:
