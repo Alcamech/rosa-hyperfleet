@@ -1,7 +1,7 @@
 #!/bin/bash
 # Must-gather for the regional platform: collects Kubernetes logs from RC and
-# MC clusters plus the PostgreSQL database state from the RC, all via the
-# log-collector ECS Fargate task.
+# MC clusters plus the PostgreSQL database state and DynamoDB kube-applier
+# desire documents from the RC, all via the log-collector ECS Fargate task.
 #
 # This script is the single implementation used by both the local dev CLI
 # (ephemeral-env.sh, int-env.sh) and CI (ci/e2e-tests.sh).
@@ -29,8 +29,11 @@
 #   LEAKTK_GATE     — Defaults to "true": abort with non-zero exit when leaktk
 #                     detects secrets remaining after redaction. Set to "false"
 #                     to log findings as warnings without blocking.
-#   DB_NAMESPACE    — Kubernetes namespace for the DB DSN secret (default: hyperfleet)
-#   DB_SECRET_NAME  — Name of the secret containing the DSN (default: hyperfleet-db-dsn)
+#   DB_NAMESPACE        — Kubernetes namespace for the DB DSN secret (default: hyperfleet)
+#   DB_SECRET_NAME      — Name of the secret containing the DSN (default: hyperfleet-db-dsn)
+#   DYNAMO_TABLE_PREFIX — Prefix for discovering kube-applier DynamoDB tables
+#                         (default: CLUSTER_PREFIX). Tables follow the naming
+#                         convention {mc_name}-{specs|status}-{applydesires|readdesires}.
 #
 # All collection failures are logged but do not cause a non-zero exit, so
 # this script is safe to call from test failure handlers.
@@ -43,6 +46,7 @@ RC_NAMESPACES="all"
 MC_NAMESPACES="all"
 DB_NAMESPACE="${DB_NAMESPACE:-hyperfleet}"
 DB_SECRET_NAME="${DB_SECRET_NAME:-hyperfleet-db-dsn}"
+DYNAMO_TABLE_PREFIX="${DYNAMO_TABLE_PREFIX:-${CLUSTER_PREFIX:-}}"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -191,6 +195,7 @@ build_dump_command() {
     local include_db="$1"
     local db_namespace="$2"
     local db_secret_name="$3"
+    local dynamo_prefix="$4"
 
     cat <<EOFCMD
 set -euo pipefail
@@ -322,6 +327,84 @@ else
     fi
 fi
 EOFDB
+
+        cat <<EOFDYNAMO
+
+# --- DynamoDB state (kube-applier desires) ---
+
+echo ""
+echo "=== DynamoDB State (kube-applier desires) ==="
+
+DYNAMO_TABLE_PREFIX='${dynamo_prefix}'
+
+echo "Discovering kube-applier DynamoDB tables with prefix '\$DYNAMO_TABLE_PREFIX'..."
+DYNAMO_TABLES=\$(aws dynamodb list-tables --output json 2>&1) || true
+
+if [[ -z "\$DYNAMO_TABLES" ]] || ! echo "\$DYNAMO_TABLES" | jq -e '.TableNames' >/dev/null 2>&1; then
+    echo "WARNING: Failed to list DynamoDB tables; skipping DynamoDB dump"
+else
+    # Filter for kube-applier desire tables matching the cluster prefix.
+    # Table names follow the convention: {mc_name}-{specs|status}-{applydesires|readdesires}
+    DESIRE_TABLES=\$(echo "\$DYNAMO_TABLES" | jq -r --arg prefix "\$DYNAMO_TABLE_PREFIX" '
+        .TableNames[] |
+        select(startswith(\$prefix)) |
+        select(
+            endswith("-specs-applydesires") or
+            endswith("-specs-readdesires") or
+            endswith("-status-applydesires") or
+            endswith("-status-readdesires")
+        )
+    ')
+
+    if [[ -z "\$DESIRE_TABLES" ]]; then
+        echo "WARNING: No kube-applier desire tables found matching prefix '\$DYNAMO_TABLE_PREFIX'; skipping DynamoDB dump"
+    else
+        echo "Found tables:"
+        echo "\$DESIRE_TABLES" | sed 's/^/  /'
+
+        mkdir -p /tmp/inspect-logs/dynamodb-state
+
+        echo "\$DESIRE_TABLES" | while IFS= read -r table; do
+            # Derive the MC name and directory path from the table name.
+            # Convention: {mc_name}-specs-applydesires → apply/spec
+            #             {mc_name}-status-readdesires → read/status
+            if [[ "\$table" == *-specs-applydesires ]]; then
+                mc_name="\${table%-specs-applydesires}"
+                sub_dir="apply/spec"
+            elif [[ "\$table" == *-specs-readdesires ]]; then
+                mc_name="\${table%-specs-readdesires}"
+                sub_dir="read/spec"
+            elif [[ "\$table" == *-status-applydesires ]]; then
+                mc_name="\${table%-status-applydesires}"
+                sub_dir="apply/status"
+            elif [[ "\$table" == *-status-readdesires ]]; then
+                mc_name="\${table%-status-readdesires}"
+                sub_dir="read/status"
+            else
+                continue
+            fi
+
+            out_dir="/tmp/inspect-logs/dynamodb-state/\${mc_name}/\${sub_dir}"
+            mkdir -p "\$out_dir"
+
+            echo "  Scanning \$table → dynamodb-state/\${mc_name}/\${sub_dir}/"
+            if scan_output=\$(aws dynamodb scan --table-name "\$table" --output json 2>&1); then
+                item_count=\$(echo "\$scan_output" | jq '.Items | length')
+                echo "\$scan_output" | jq -c '.Items[]' 2>/dev/null | while IFS= read -r item; do
+                    doc_id=\$(echo "\$item" | jq -r '.documentID.S // "unknown"' | tr '/' '_')
+                    echo "\$item" | jq '.' > "\${out_dir}/\${doc_id}.json"
+                done
+                echo "    Dumped \${item_count} items"
+            else
+                echo "WARNING: Failed to scan table \$table; continuing"
+            fi
+        done
+
+        total=\$(find /tmp/inspect-logs/dynamodb-state -name '*.json' 2>/dev/null | wc -l)
+        echo "  Total DynamoDB items dumped: \$total"
+    fi
+fi
+EOFDYNAMO
     fi
 
     cat <<'EOFTAIL'
@@ -395,7 +478,7 @@ dump_cluster() {
 
     if [[ "$include_db" == "true" ]]; then
         local ecs_command
-        ecs_command=$(build_dump_command "true" "$DB_NAMESPACE" "$DB_SECRET_NAME")
+        ecs_command=$(build_dump_command "true" "$DB_NAMESPACE" "$DB_SECRET_NAME" "$DYNAMO_TABLE_PREFIX")
         overrides_json=$(echo "$overrides_json" | jq \
             --arg cmd "$ecs_command" \
             '.containerOverrides[0].command = [$cmd]')
