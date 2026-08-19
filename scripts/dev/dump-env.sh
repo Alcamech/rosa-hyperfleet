@@ -477,11 +477,13 @@ dump_cluster() {
         }]}')
 
     if [[ "$include_db" == "true" ]]; then
-        local ecs_command
+        local ecs_command script_b64
         ecs_command=$(build_dump_command "true" "$DB_NAMESPACE" "$DB_SECRET_NAME" "$DYNAMO_TABLE_PREFIX")
+        script_b64=$(printf '%s' "$ecs_command" | gzip -9 | base64)
         overrides_json=$(echo "$overrides_json" | jq \
-            --arg cmd "$ecs_command" \
-            '.containerOverrides[0].command = [$cmd]')
+            --arg script_b64 "$script_b64" \
+            '.containerOverrides[0].environment += [{name: "DUMP_SCRIPT_B64", value: $script_b64}]
+             | .containerOverrides[0].command = ["echo \"$DUMP_SCRIPT_B64\" | base64 -d | gunzip | bash"]')
     fi
 
     echo "  Launching dump task..."
