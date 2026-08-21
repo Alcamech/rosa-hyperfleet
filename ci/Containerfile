@@ -14,6 +14,7 @@ RUN if [ -n "${PROXY_CA_CERT}" ]; then \
 
 # Tool versions
 ARG TERRAFORM_VERSION=1.14.3
+ARG TERRAGRUNT_VERSION=1.1.1
 ARG HELM_VERSION=v3.21.3
 ARG UV_VERSION=0.6.0
 ARG AWS_CLI_VERSION=2.34.19
@@ -78,6 +79,24 @@ RUN arch=$(uname -m) && \
     chmod +x /usr/local/bin/terraform && \
     rm -f "${TF_PACKAGE}" "terraform_${TERRAFORM_VERSION}_SHA256SUMS" \
         "terraform_${TERRAFORM_VERSION}_SHA256SUMS.sig"
+
+# Terragrunt (checksum-verified)
+ARG CURL_RETRY
+ARG CURL_RETRY_DELAY
+ARG CURL_MAX_TIME
+RUN arch=$(uname -m) && \
+    case "${arch}" in \
+        x86_64)  arch="amd64" ;; \
+        aarch64) arch="arm64" ;; \
+    esac && \
+    TG_BASE_URL="https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}" && \
+    TG_BIN="terragrunt_linux_${arch}" && \
+    curl --retry ${CURL_RETRY} --retry-delay ${CURL_RETRY_DELAY} --max-time ${CURL_MAX_TIME} -fsSL "${TG_BASE_URL}/${TG_BIN}" -o "/tmp/${TG_BIN}" && \
+    curl --retry ${CURL_RETRY} --retry-delay ${CURL_RETRY_DELAY} --max-time ${CURL_MAX_TIME} -fsSL "${TG_BASE_URL}/SHA256SUMS" -o /tmp/tg_sha256sums && \
+    grep "${TG_BIN}$" /tmp/tg_sha256sums | (cd /tmp && sha256sum -c -) && \
+    install -m 0755 "/tmp/${TG_BIN}" /usr/local/bin/terragrunt && \
+    rm -f "/tmp/${TG_BIN}" /tmp/tg_sha256sums && \
+    terragrunt --version
 
 # Helm 3 (SHA-256 verified with retry logic)
 ARG CURL_RETRY
