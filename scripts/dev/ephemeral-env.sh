@@ -1140,6 +1140,10 @@ cmd_e2e() {
         -e "CLI_REF=${CLI_REF:-main}" \
         -e "CLI_REPO=${CLI_REPO:-}" \
         -e "E2E_SKIP_CLEANUP=${E2E_SKIP_CLEANUP:-}" \
+        -e "E2E_SKIP_PLATFORM_API=${E2E_SKIP_PLATFORM_API:-}" \
+        -e "E2E_SKIP_HCP=${E2E_SKIP_HCP:-}" \
+        -e "E2E_SKIP_MONITORING=${E2E_SKIP_MONITORING:-}" \
+        -e "E2E_SKIP_ROSA_CLI=${E2E_SKIP_ROSA_CLI:-}" \
         "$CI_IMAGE" \
         bash ci/e2e-tests.sh
 }
