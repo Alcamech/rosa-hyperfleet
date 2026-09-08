@@ -1140,6 +1140,8 @@ cmd_e2e() {
         -e "E2E_REPO=$e2e_repo" \
         -e "CLI_REF=${CLI_REF:-main}" \
         -e "CLI_REPO=${CLI_REPO:-}" \
+        -e "ROSA_REPO_URL=${ROSA_REPO_URL:-}" \
+        -e "ROSA_REPO_BRANCH=${ROSA_REPO_BRANCH:-}" \
         -e "E2E_SKIP_CLEANUP=${E2E_SKIP_CLEANUP:-}" \
         -e "E2E_SKIP_PLATFORM_API=${E2E_SKIP_PLATFORM_API:-}" \
         -e "E2E_SKIP_HCP=${E2E_SKIP_HCP:-}" \

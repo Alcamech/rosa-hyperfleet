@@ -109,6 +109,8 @@ E2E_REF="${E2E_REF:-main}"
 E2E_REPO="${E2E_REPO:-https://github.com/openshift-online/rosa-hyperfleet-api.git}"
 CLI_REF="${CLI_REF:-main}"
 CLI_REPO="${CLI_REPO:-https://github.com/openshift-online/rosa-hyperfleet-cli.git}"
+ROSA_REPO_URL="${ROSA_REPO_URL:-https://github.com/openshift/rosa}"
+ROSA_REPO_BRANCH="${ROSA_REPO_BRANCH:-hyperfleet-v2}"
 E2E_SKIP_PLATFORM_API="${E2E_SKIP_PLATFORM_API:-false}"  # Set to "true" to skip
 E2E_SKIP_HCP="${E2E_SKIP_HCP:-false}"  # Set to "true" to skip
 E2E_SKIP_MONITORING="${E2E_SKIP_MONITORING:-false}"  # Set to "true" to skip
@@ -283,6 +285,7 @@ if [[ "$_have_customer_creds" == "true" ]]; then
     echo ""
     echo "=== ROSA CLI Tests ==="
     echo ""
+    export ROSA_REPO_URL ROSA_REPO_BRANCH
     make test-e2e-rosa-cli || rosa_cli_rc=$?
   else
     echo ""
@@ -315,9 +318,7 @@ if [[ $platform_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne
 fi
 
 echo ""
-echo "E2E results: platform=$platform_rc hcp=$hcp_rc monitoring=$monitoring_rc rosa-cli=$rosa_cli_rc"
-if [[ $platform_rc -ne 0 ]] || [[ $hcp_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne 0 ]]; then
-echo "E2E results: platform=$platform_rc hcp=$hcp_rc monitoring=$monitoring_rc zoa=$zoa_exit"
-if [[ $platform_rc -ne 0 ]] || [[ $hcp_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $zoa_exit -ne 0 ]]; then
+echo "E2E results: platform=$platform_rc hcp=$hcp_rc monitoring=$monitoring_rc rosa-cli=$rosa_cli_rc zoa=$zoa_exit"
+if [[ $platform_rc -ne 0 ]] || [[ $hcp_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne 0 ]] || [[ $zoa_exit -ne 0 ]]; then
     exit 1
 fi
