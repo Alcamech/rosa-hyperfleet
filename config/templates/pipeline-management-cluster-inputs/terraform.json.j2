@@ -12,6 +12,9 @@
   "zoa_lambda_image_tag": {{ regional_cluster.zoa_lambda_image_tag | default('') | tojson }},
   "zoa_runner_image_tag": {{ regional_cluster.zoa_runner_image_tag | default('') | tojson }},
   "zoa_runner_source_image": {{ regional_cluster.zoa_runner_source_image | default('') | tojson }}
+{%- if eph_prefix | default('', true) %},
+  "eph_prefix": {{ eph_prefix | tojson }}
+{%- endif %}
 {%- if mc.enable_bastion is defined %},
   "enable_bastion": {{ mc.enable_bastion | tojson }}{% elif management_cluster_defaults.enable_bastion %},
   "enable_bastion": {{ management_cluster_defaults.enable_bastion | tojson }}{% endif %}{% if mc.delete %},
