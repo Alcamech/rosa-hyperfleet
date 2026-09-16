@@ -87,6 +87,7 @@ export AWS_PROFILE="rrp-rc"
 export AWS_DEFAULT_REGION="${AWS_REGION:-us-east-1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export REPO_ROOT
 
 # Compute CLUSTER_PREFIX early so it's available for pre-cleanup hooks (log
 # collection while HCPs still exist), not just in the post-test failure handler.
@@ -103,6 +104,15 @@ elif [[ -n "${BUILD_ID:-}" ]]; then
     fi
 else
     echo "WARNING: no ${CREDS_DIR}/api_url and BUILD_ID not set — CLUSTER_PREFIX unset, log collection disabled" >&2
+fi
+
+# Ephemeral on-demand CI: ensure SSM plugin once before tunnel/HCP tests (non-root safe).
+if [[ -n "${CLUSTER_PREFIX:-}" && "${E2E_SKIP_ALERTMANAGER_FORWARD:-}" != "true" ]]; then
+  # shellcheck source=ci/install-session-manager-plugin.sh
+  source "${REPO_ROOT}/ci/install-session-manager-plugin.sh"
+  ensure_session_manager_plugin_on_path || {
+    echo "WARNING: session-manager-plugin not available — silence e2e specs will skip" >&2
+  }
 fi
 
 E2E_REF="${E2E_REF:-main}"

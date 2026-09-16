@@ -145,7 +145,7 @@ RUN arch=$(uname -m) && \
     rm -rf awscliv2.zip ./aws && \
     aws --version
 
-# Session Manager plugin (required for SSM port-forward to ephemeral bastion in e2e)
+# Session Manager plugin (SSM port-forward to ephemeral bastion; runtime fallback in ci/install-session-manager-plugin.sh)
 ARG CURL_RETRY
 ARG CURL_RETRY_DELAY
 ARG CURL_MAX_TIME

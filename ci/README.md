@@ -52,12 +52,15 @@ The CI image is built from [ci/Containerfile](ci/Containerfile) and includes all
 | Terraform | Infrastructure provisioning                   |
 | Helm      | Kubernetes chart templating and linting       |
 | AWS CLI   | AWS account and resource management           |
+| session-manager-plugin | SSM port-forward to ephemeral bastion (on-demand e2e silence specs) |
 | Python/uv | Ephemeral provider and scripting              |
 | Prettier  | Markdown formatting checks (`check-docs` job) |
 | yq        | YAML processing                               |
 | promtool  | Prometheus rule validation and unit testing   |
 
 These tools are available in all CI job containers and can be used in scripts run by CI jobs.
+
+`on-demand-e2e` runs provision/test/teardown in the `rosa-regional-platform-ci` image (same as nightly ephemeral e2e), not the lightweight `src` root. That requires an [openshift/release](https://github.com/openshift/release) ci-operator config update alongside the Containerfile changes in this repo.
 
 ## Ephemeral Environment
 

@@ -17,66 +17,6 @@ _AM_TASK_ID=""
 _AM_CLEANUP_REGISTERED=false
 _AM_PRIOR_EXIT_TRAP=""
 
-# Locate SSM plugin on PATH; on-demand-e2e `from: src` may not include Containerfile tooling.
-ensure_session_manager_plugin() {
-  if command -v session-manager-plugin >/dev/null 2>&1; then
-    return 0
-  fi
-  local dir
-  for dir in /usr/local/sessionmanagerplugin/bin /usr/bin /usr/local/bin; do
-    if [[ -x "${dir}/session-manager-plugin" ]]; then
-      export PATH="${dir}:${PATH}"
-      return 0
-    fi
-  done
-  echo "=== Installing session-manager-plugin for Alertmanager tunnel ==="
-  local arch sm_arch rpm tmp_dir plugin
-  arch=$(uname -m)
-  case "${arch}" in
-    x86_64) sm_arch=64bit ;;
-    aarch64) sm_arch=arm64 ;;
-    *)
-      echo "ERROR: unsupported architecture for session-manager-plugin: ${arch}" >&2
-      return 1
-      ;;
-  esac
-  tmp_dir=$(mktemp -d)
-  rpm="${tmp_dir}/session-manager-plugin.rpm"
-  curl -fsSL --max-time 300 \
-    "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_${sm_arch}/session-manager-plugin.rpm" \
-    -o "${rpm}"
-
-  if [[ "$(id -u)" -eq 0 ]] && { command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; }; then
-    local pkg_mgr=dnf
-    command -v dnf >/dev/null 2>&1 || pkg_mgr=yum
-    "${pkg_mgr}" install -y "${rpm}"
-    rm -rf "${tmp_dir}"
-    ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin 2>/dev/null || true
-    export PATH="/usr/local/sessionmanagerplugin/bin:${PATH}"
-  elif command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
-    # Prow e2e pods often run non-root; extract the RPM into a temp dir.
-    (cd "${tmp_dir}" && rpm2cpio "${rpm}" | cpio -idmv 2>/dev/null)
-    plugin=$(find "${tmp_dir}" -type f -name session-manager-plugin 2>/dev/null | head -1)
-    if [[ -z "${plugin}" ]]; then
-      rm -rf "${tmp_dir}"
-      echo "ERROR: session-manager-plugin binary not found in RPM" >&2
-      return 1
-    fi
-    chmod +x "${plugin}"
-    export PATH="$(dirname "${plugin}"):${PATH}"
-  else
-    rm -rf "${tmp_dir}"
-    echo "ERROR: cannot install session-manager-plugin (need root+dnf or rpm2cpio+cpio)" >&2
-    return 1
-  fi
-
-  if command -v session-manager-plugin >/dev/null 2>&1; then
-    return 0
-  fi
-  echo "ERROR: session-manager-plugin install failed" >&2
-  return 1
-}
-
 cleanup_alertmanager_forward() {
   if [[ -n "${_AM_SSM_PID}" ]]; then
     kill "${_AM_SSM_PID}" 2>/dev/null || true
@@ -130,11 +70,13 @@ start_alertmanager_forward() {
     cluster_id="${CLUSTER_PREFIX}regional"
   fi
 
-  ensure_session_manager_plugin || return 1
-
   local repo_root script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   repo_root="$(cd "${script_dir}/.." && pwd)"
+  export REPO_ROOT="${repo_root}"
+  # shellcheck source=ci/install-session-manager-plugin.sh
+  source "${script_dir}/install-session-manager-plugin.sh"
+  ensure_session_manager_plugin_on_path || return 1
   # shellcheck source=scripts/dev/env-common.sh
   source "${repo_root}/scripts/dev/env-common.sh"
 
