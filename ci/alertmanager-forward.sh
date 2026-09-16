@@ -16,6 +16,22 @@ _AM_ECS_CLUSTER=""
 _AM_TASK_ID=""
 _AM_CLEANUP_REGISTERED=false
 
+# RPM installs off default PATH in non-interactive CI shells; locate or fail clearly.
+ensure_session_manager_plugin() {
+  if command -v session-manager-plugin >/dev/null 2>&1; then
+    return 0
+  fi
+  local dir
+  for dir in /usr/local/sessionmanagerplugin/bin /usr/bin /usr/local/bin; do
+    if [[ -x "${dir}/session-manager-plugin" ]]; then
+      export PATH="${dir}:${PATH}"
+      return 0
+    fi
+  done
+  echo "ERROR: session-manager-plugin not installed (required for SSM port forward)" >&2
+  return 1
+}
+
 cleanup_alertmanager_forward() {
   if [[ -n "${_AM_SSM_PID}" ]]; then
     kill "${_AM_SSM_PID}" 2>/dev/null || true
@@ -48,10 +64,7 @@ start_alertmanager_forward() {
     cluster_id="${CLUSTER_PREFIX}regional"
   fi
 
-  if ! command -v session-manager-plugin >/dev/null 2>&1; then
-    echo "ERROR: session-manager-plugin not installed (required for SSM port forward)" >&2
-    return 1
-  fi
+  ensure_session_manager_plugin || return 1
 
   local repo_root script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

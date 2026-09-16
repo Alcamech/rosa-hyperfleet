@@ -157,7 +157,10 @@ RUN arch=$(uname -m) && \
         -o /tmp/session-manager-plugin.rpm && \
     dnf install -y /tmp/session-manager-plugin.rpm && \
     rm -f /tmp/session-manager-plugin.rpm && \
+    ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin && \
     session-manager-plugin --version
+
+ENV PATH="/usr/local/sessionmanagerplugin/bin:${PATH}"
 
 # yq (YAML processor)
 ARG CURL_RETRY
