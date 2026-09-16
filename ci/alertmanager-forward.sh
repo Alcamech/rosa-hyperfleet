@@ -17,7 +17,7 @@ _AM_TASK_ID=""
 _AM_CLEANUP_REGISTERED=false
 _AM_PRIOR_EXIT_TRAP=""
 
-# RPM installs off default PATH in non-interactive CI shells; locate or fail clearly.
+# Locate SSM plugin on PATH; on-demand-e2e `from: src` may not include Containerfile tooling.
 ensure_session_manager_plugin() {
   if command -v session-manager-plugin >/dev/null 2>&1; then
     return 0
@@ -29,7 +29,33 @@ ensure_session_manager_plugin() {
       return 0
     fi
   done
-  echo "ERROR: session-manager-plugin not installed (required for SSM port forward)" >&2
+  if ! command -v dnf >/dev/null 2>&1 && ! command -v yum >/dev/null 2>&1; then
+    echo "ERROR: session-manager-plugin not found and no package manager to install it" >&2
+    return 1
+  fi
+  echo "=== Installing session-manager-plugin for Alertmanager tunnel ==="
+  local arch sm_arch rpm=/tmp/session-manager-plugin.rpm pkg_mgr=dnf
+  command -v dnf >/dev/null 2>&1 || pkg_mgr=yum
+  arch=$(uname -m)
+  case "${arch}" in
+    x86_64) sm_arch=64bit ;;
+    aarch64) sm_arch=arm64 ;;
+    *)
+      echo "ERROR: unsupported architecture for session-manager-plugin: ${arch}" >&2
+      return 1
+      ;;
+  esac
+  curl -fsSL --max-time 300 \
+    "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_${sm_arch}/session-manager-plugin.rpm" \
+    -o "${rpm}"
+  "${pkg_mgr}" install -y "${rpm}"
+  rm -f "${rpm}"
+  ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin 2>/dev/null || true
+  export PATH="/usr/local/sessionmanagerplugin/bin:${PATH}"
+  if command -v session-manager-plugin >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "ERROR: session-manager-plugin install failed" >&2
   return 1
 }
 
