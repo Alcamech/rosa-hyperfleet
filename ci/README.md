@@ -47,16 +47,16 @@ Component repos (e.g., `rosa-hyperfleet-api`) can run the e2e test suite against
 
 The CI image is built from [ci/Containerfile](ci/Containerfile) and includes all required tools:
 
-| Tool      | Purpose                                       |
-| --------- | --------------------------------------------- |
-| Terraform | Infrastructure provisioning                   |
-| Helm      | Kubernetes chart templating and linting       |
-| AWS CLI   | AWS account and resource management           |
+| Tool                   | Purpose                                                             |
+| ---------------------- | ------------------------------------------------------------------- |
+| Terraform              | Infrastructure provisioning                                         |
+| Helm                   | Kubernetes chart templating and linting                             |
+| AWS CLI                | AWS account and resource management                                 |
 | session-manager-plugin | SSM port-forward to ephemeral bastion (on-demand e2e silence specs) |
-| Python/uv | Ephemeral provider and scripting              |
-| Prettier  | Markdown formatting checks (`check-docs` job) |
-| yq        | YAML processing                               |
-| promtool  | Prometheus rule validation and unit testing   |
+| Python/uv              | Ephemeral provider and scripting                                    |
+| Prettier               | Markdown formatting checks (`check-docs` job)                       |
+| yq                     | YAML processing                                                     |
+| promtool               | Prometheus rule validation and unit testing                         |
 
 These tools are available in all CI job containers and can be used in scripts run by CI jobs.
 
