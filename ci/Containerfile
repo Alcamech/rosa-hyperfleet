@@ -45,6 +45,8 @@ RUN dnf install -y \
         golang \
         nodejs \
         npm \
+        rpm \
+        cpio \
     && dnf clean all
 
 # Prettier (for markdown doc checks)

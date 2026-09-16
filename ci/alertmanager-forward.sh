@@ -29,13 +29,8 @@ ensure_session_manager_plugin() {
       return 0
     fi
   done
-  if ! command -v dnf >/dev/null 2>&1 && ! command -v yum >/dev/null 2>&1; then
-    echo "ERROR: session-manager-plugin not found and no package manager to install it" >&2
-    return 1
-  fi
   echo "=== Installing session-manager-plugin for Alertmanager tunnel ==="
-  local arch sm_arch rpm=/tmp/session-manager-plugin.rpm pkg_mgr=dnf
-  command -v dnf >/dev/null 2>&1 || pkg_mgr=yum
+  local arch sm_arch rpm tmp_dir plugin
   arch=$(uname -m)
   case "${arch}" in
     x86_64) sm_arch=64bit ;;
@@ -45,13 +40,36 @@ ensure_session_manager_plugin() {
       return 1
       ;;
   esac
+  tmp_dir=$(mktemp -d)
+  rpm="${tmp_dir}/session-manager-plugin.rpm"
   curl -fsSL --max-time 300 \
     "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_${sm_arch}/session-manager-plugin.rpm" \
     -o "${rpm}"
-  "${pkg_mgr}" install -y "${rpm}"
-  rm -f "${rpm}"
-  ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin 2>/dev/null || true
-  export PATH="/usr/local/sessionmanagerplugin/bin:${PATH}"
+
+  if [[ "$(id -u)" -eq 0 ]] && { command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; }; then
+    local pkg_mgr=dnf
+    command -v dnf >/dev/null 2>&1 || pkg_mgr=yum
+    "${pkg_mgr}" install -y "${rpm}"
+    rm -rf "${tmp_dir}"
+    ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin 2>/dev/null || true
+    export PATH="/usr/local/sessionmanagerplugin/bin:${PATH}"
+  elif command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
+    # Prow e2e pods often run non-root; extract the RPM into a temp dir.
+    (cd "${tmp_dir}" && rpm2cpio "${rpm}" | cpio -idmv 2>/dev/null)
+    plugin=$(find "${tmp_dir}" -type f -name session-manager-plugin 2>/dev/null | head -1)
+    if [[ -z "${plugin}" ]]; then
+      rm -rf "${tmp_dir}"
+      echo "ERROR: session-manager-plugin binary not found in RPM" >&2
+      return 1
+    fi
+    chmod +x "${plugin}"
+    export PATH="$(dirname "${plugin}"):${PATH}"
+  else
+    rm -rf "${tmp_dir}"
+    echo "ERROR: cannot install session-manager-plugin (need root+dnf or rpm2cpio+cpio)" >&2
+    return 1
+  fi
+
   if command -v session-manager-plugin >/dev/null 2>&1; then
     return 0
   fi
