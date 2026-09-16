@@ -15,6 +15,7 @@ _AM_SSM_PID=""
 _AM_ECS_CLUSTER=""
 _AM_TASK_ID=""
 _AM_CLEANUP_REGISTERED=false
+_AM_PRIOR_EXIT_TRAP=""
 
 # RPM installs off default PATH in non-interactive CI shells; locate or fail clearly.
 ensure_session_manager_plugin() {
@@ -49,6 +50,27 @@ cleanup_alertmanager_forward() {
   fi
 }
 
+_register_am_cleanup_trap() {
+  if [[ "${_AM_CLEANUP_REGISTERED}" == "true" ]]; then
+    return 0
+  fi
+  local trap_output
+  trap_output="$(trap -p EXIT 2>/dev/null || true)"
+  if [[ -n "${trap_output}" ]]; then
+    _AM_PRIOR_EXIT_TRAP="${trap_output#trap -- \'}"
+    _AM_PRIOR_EXIT_TRAP="${_AM_PRIOR_EXIT_TRAP%\' EXIT}"
+  fi
+  trap '_am_run_exit_traps' EXIT
+  _AM_CLEANUP_REGISTERED=true
+}
+
+_am_run_exit_traps() {
+  cleanup_alertmanager_forward
+  if [[ -n "${_AM_PRIOR_EXIT_TRAP}" ]]; then
+    eval "${_AM_PRIOR_EXIT_TRAP}"
+  fi
+}
+
 # Start bastion + SSM tunnel. Uses CLUSTER_PREFIX (eph-<hash>-) when cluster_id omitted.
 start_alertmanager_forward() {
   local cluster_id="${1:-}"
@@ -77,6 +99,7 @@ start_alertmanager_forward() {
   bastion_run_task "${cluster_id}"
   _AM_ECS_CLUSTER="${ecs_cluster}"
   _AM_TASK_ID="${task_id}"
+  _register_am_cleanup_trap
   sleep 12
 
   aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
@@ -103,13 +126,9 @@ start_alertmanager_forward() {
   _AM_SSM_PID=$!
   sleep 15
 
-  if curl -sf "${am_url}/-/healthy" >/dev/null; then
+  if curl -sf --connect-timeout 5 --max-time 15 "${am_url}/-/healthy" >/dev/null; then
     export ALERTMANAGER_URL="${am_url}"
     export E2E_ALERTMANAGER_URL="${am_url}"
-    if [[ "${_AM_CLEANUP_REGISTERED}" == "false" ]]; then
-      trap cleanup_alertmanager_forward EXIT
-      _AM_CLEANUP_REGISTERED=true
-    fi
     echo "ALERTMANAGER_FORWARD_OK url=${ALERTMANAGER_URL}"
     return 0
   fi
