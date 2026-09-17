@@ -93,18 +93,23 @@ _ssm_finalize_plugin_in_dir() {
   export PATH="${dest_dir}/bin:${bindir}:${PATH}"
 }
 
-# Non-root: extract .deb with ar+tar (works when rpm2cpio is not in the `src` CI pod).
+# Non-root: extract .deb (python3 stdlib — works in on-demand `from: src` pods without ar/rpm2cpio).
 _ssm_extract_deb_to_dir() {
   local deb="$1"
   local dest_dir="$2"
-  if ! command -v ar >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
-    return 1
-  fi
-  mkdir -p "${dest_dir}"
   local work="${dest_dir}/.deb-extract"
   mkdir -p "${work}"
-  (cd "${work}" && ar x "${deb}" && tar -xzf data.tar.gz)
-  _ssm_finalize_plugin_in_dir "${work}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "${REPO_ROOT}/ci/extract-deb-data.py" "${deb}" "${work}"
+    _ssm_finalize_plugin_in_dir "${work}"
+    return 0
+  fi
+  if command -v ar >/dev/null 2>&1 && command -v tar >/dev/null 2>&1; then
+    (cd "${work}" && ar x "${deb}" && tar -xzf data.tar.gz)
+    _ssm_finalize_plugin_in_dir "${work}"
+    return 0
+  fi
+  return 1
 }
 
 # Non-root safe: extract RPM into ci/.cache (or SESSION_MANAGER_PLUGIN_CACHE).
@@ -119,22 +124,19 @@ ensure_session_manager_plugin_on_path() {
   cache_root="${SESSION_MANAGER_PLUGIN_CACHE:-${REPO_ROOT:-}/ci/.cache/session-manager-plugin}"
   mkdir -p "${cache_root}"
 
-  if command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
-    local rpm="${tmp_dir}/session-manager-plugin.rpm"
-    _ssm_download_rpm "${rpm}"
-    _ssm_extract_rpm_to_dir "${rpm}" "${cache_root}"
-  elif command -v ar >/dev/null 2>&1; then
-    local deb="${tmp_dir}/session-manager-plugin.deb"
-    _ssm_download_deb "${deb}"
-    _ssm_extract_deb_to_dir "${deb}" "${cache_root}" || {
+  # Prefer .deb: on-demand e2e `from: src` often has python3+uv but not rpm2cpio/ar.
+  local deb="${tmp_dir}/session-manager-plugin.deb"
+  _ssm_download_deb "${deb}"
+  if ! _ssm_extract_deb_to_dir "${deb}" "${cache_root}"; then
+    if command -v rpm2cpio >/dev/null 2>&1 && command -v cpio >/dev/null 2>&1; then
+      local rpm="${tmp_dir}/session-manager-plugin.rpm"
+      _ssm_download_rpm "${rpm}"
+      _ssm_extract_rpm_to_dir "${rpm}" "${cache_root}"
+    else
       rm -rf "${tmp_dir}"
-      echo "ERROR: failed to extract session-manager-plugin .deb" >&2
+      echo "ERROR: failed to extract session-manager-plugin (need python3, ar, or rpm2cpio)" >&2
       return 1
-    }
-  else
-    rm -rf "${tmp_dir}"
-    echo "ERROR: need rpm2cpio+cpio or ar+tar to install session-manager-plugin" >&2
-    return 1
+    fi
   fi
   rm -rf "${tmp_dir}"
 
