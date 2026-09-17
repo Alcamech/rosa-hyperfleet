@@ -1,36 +1,17 @@
 #!/usr/bin/env bash
 # Ephemeral CI: tunnel regional Alertmanager to localhost for e2e-cli silence specs.
 #
-# Pattern (same as scripts/dev/ephemeral-env.sh port-forward):
-#   1. Bastion: kubectl port-forward monitoring-alertmanager:9093 on 0.0.0.0
-#   2. Test pod: SSM port-forward bastion:9093 -> localhost:9093
-#
-# Requires: AWS creds with ECS exec + SSM (rrp-rc), session-manager-plugin, kubectl on bastion.
+# Uses scripts/dev/env-common.sh bastion_port_forward (same pattern as dev port-forward).
 # Sets ALERTMANAGER_URL (Makefile maps to E2E_ALERTMANAGER_URL for ginkgo).
 
 set -euo pipefail
 
-_AM_BASTION_PF_PID=""
-_AM_SSM_PID=""
-_AM_ECS_CLUSTER=""
-_AM_TASK_ID=""
 _AM_CLEANUP_REGISTERED=false
 _AM_PRIOR_EXIT_TRAP=""
 
 cleanup_alertmanager_forward() {
-  if [[ -n "${_AM_SSM_PID}" ]]; then
-    kill "${_AM_SSM_PID}" 2>/dev/null || true
-    wait "${_AM_SSM_PID}" 2>/dev/null || true
-    _AM_SSM_PID=""
-  fi
-  if [[ -n "${_AM_BASTION_PF_PID}" ]]; then
-    kill "${_AM_BASTION_PF_PID}" 2>/dev/null || true
-    wait "${_AM_BASTION_PF_PID}" 2>/dev/null || true
-    _AM_BASTION_PF_PID=""
-  fi
-  if [[ -n "${_AM_ECS_CLUSTER}" && -n "${_AM_TASK_ID}" ]]; then
-    aws ecs execute-command --cluster "${_AM_ECS_CLUSTER}" --task "${_AM_TASK_ID}" --container bastion \
-      --interactive --command "pkill -f 'port-forward.*monitoring-alertmanager' || true" &>/dev/null || true
+  if declare -F bastion_port_forward_cleanup >/dev/null 2>&1; then
+    bastion_port_forward_cleanup
   fi
 }
 
@@ -73,51 +54,33 @@ start_alertmanager_forward() {
   local repo_root script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   repo_root="$(cd "${script_dir}/.." && pwd)"
-  export REPO_ROOT="${repo_root}"
-  # shellcheck source=ci/install-session-manager-plugin.sh
-  source "${script_dir}/install-session-manager-plugin.sh"
-  ensure_session_manager_plugin_on_path || return 1
   # shellcheck source=scripts/dev/env-common.sh
   source "${repo_root}/scripts/dev/env-common.sh"
 
-  echo "=== Alertmanager forward: cluster_id=${cluster_id} ==="
-  unset task_id
-  bastion_run_task "${cluster_id}"
-  _AM_ECS_CLUSTER="${ecs_cluster}"
-  _AM_TASK_ID="${task_id}"
   _register_am_cleanup_trap
-  sleep 12
 
-  aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
-    --interactive --command "pkill -f 'port-forward.*monitoring-alertmanager' || true" &>/dev/null || true
-  sleep 2
-
-  echo "=== Bastion kubectl port-forward to Alertmanager ==="
-  aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
-    --interactive \
-    --command "kubectl port-forward svc/monitoring-alertmanager ${remote_port}:9093 -n monitoring --address 0.0.0.0" &
-  _AM_BASTION_PF_PID=$!
-  sleep 10
-
-  local runtime_id target
-  runtime_id=$(aws ecs describe-tasks --cluster "${ecs_cluster}" --tasks "${task_id}" \
-    --query 'tasks[0].containers[?name==`bastion`].runtimeId | [0]' --output text)
-  target="ecs:${ecs_cluster}_${task_id}_${runtime_id}"
-
-  echo "=== SSM port-forward localhost:${local_port} -> bastion:${remote_port} ==="
-  aws ssm start-session \
-    --target "${target}" \
-    --document-name AWS-StartPortForwardingSession \
-    --parameters "{\"portNumber\":[\"${remote_port}\"],\"localPortNumber\":[\"${local_port}\"]}" &
-  _AM_SSM_PID=$!
-  sleep 15
-
-  if curl -sf --connect-timeout 5 --max-time 15 "${am_url}/-/healthy" >/dev/null; then
-    export ALERTMANAGER_URL="${am_url}"
-    export E2E_ALERTMANAGER_URL="${am_url}"
-    echo "ALERTMANAGER_FORWARD_OK url=${ALERTMANAGER_URL}"
-    return 0
+  echo "=== Alertmanager forward: cluster_id=${cluster_id} ==="
+  set +e
+  BASTION_SOFT_FAIL=1
+  bastion_port_forward "${cluster_id}" monitoring monitoring-alertmanager 9093 "${remote_port}" "${local_port}"
+  local pf_rc=$?
+  unset BASTION_SOFT_FAIL
+  set -e
+  if [[ "${pf_rc}" -ne 0 ]]; then
+    cleanup_alertmanager_forward
+    return 1
   fi
+
+  local i
+  for i in $(seq 1 30); do
+    if curl -sf --connect-timeout 2 --max-time 5 "${am_url}/-/healthy" >/dev/null; then
+      export ALERTMANAGER_URL="${am_url}"
+      export E2E_ALERTMANAGER_URL="${am_url}"
+      echo "ALERTMANAGER_FORWARD_OK url=${ALERTMANAGER_URL}"
+      return 0
+    fi
+    sleep 1
+  done
 
   echo "ERROR: Alertmanager health check failed at ${am_url}" >&2
   cleanup_alertmanager_forward

@@ -60,8 +60,6 @@ The CI image is built from [ci/Containerfile](ci/Containerfile) and includes all
 
 These tools are available in all CI job containers and can be used in scripts run by CI jobs.
 
-`on-demand-e2e` runs provision/test/teardown in the `rosa-regional-platform-ci` image (same as nightly ephemeral e2e), not the lightweight `src` root. That requires an [openshift/release](https://github.com/openshift/release) ci-operator config update alongside the Containerfile changes in this repo.
-
 ## Ephemeral Environment
 
 The [ci/ephemeral-provider/main.py](ci/ephemeral-provider/main.py) script manages ephemeral environments for CI testing. It supports three modes — provision, teardown (`--teardown`), and resync (`--resync`) — designed to run as separate CI steps with tests in between.

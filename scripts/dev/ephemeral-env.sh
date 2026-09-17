@@ -350,15 +350,6 @@ preflight() {
     [[ -z "$missing" ]] || die "Missing required tools:$missing"
 }
 
-# Register cleanup_fn as the EXIT handler and chain the previously-registered
-# trap so it still fires afterwards. Isolates the capture/eval boilerplate so
-# callers only define their cleanup logic.
-chain_exit_trap() {
-    local fn="$1"
-    _chain_exit_prev=$(trap -p EXIT | sed "s/^trap -- '//;s/' EXIT$//")
-    trap "${fn}; eval \"\$_chain_exit_prev\"" EXIT
-}
-
 # =============================================================================
 # Commands
 # =============================================================================

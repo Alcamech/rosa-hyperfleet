@@ -45,9 +45,6 @@ RUN dnf install -y \
         golang \
         nodejs \
         npm \
-        rpm \
-        cpio \
-        binutils \
     && dnf clean all
 
 # Prettier (for markdown doc checks)
@@ -146,7 +143,7 @@ RUN arch=$(uname -m) && \
     rm -rf awscliv2.zip ./aws && \
     aws --version
 
-# Session Manager plugin (SSM port-forward to ephemeral bastion; runtime fallback in ci/install-session-manager-plugin.sh)
+# Session Manager plugin (SSM port-forward to ephemeral bastion)
 ARG CURL_RETRY
 ARG CURL_RETRY_DELAY
 ARG CURL_MAX_TIME

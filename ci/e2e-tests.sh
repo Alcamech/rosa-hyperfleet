@@ -106,15 +106,6 @@ else
     echo "WARNING: no ${CREDS_DIR}/api_url and BUILD_ID not set — CLUSTER_PREFIX unset, log collection disabled" >&2
 fi
 
-# Ephemeral on-demand CI: ensure SSM plugin once before tunnel/HCP tests (non-root safe).
-if [[ -n "${CLUSTER_PREFIX:-}" && "${E2E_SKIP_ALERTMANAGER_FORWARD:-}" != "true" ]]; then
-  # shellcheck source=ci/install-session-manager-plugin.sh
-  source "${REPO_ROOT}/ci/install-session-manager-plugin.sh"
-  ensure_session_manager_plugin_on_path || {
-    echo "WARNING: session-manager-plugin not available — silence e2e specs will skip" >&2
-  }
-fi
-
 E2E_REF="${E2E_REF:-main}"
 E2E_REPO="${E2E_REPO:-https://github.com/openshift-online/rosa-hyperfleet-api.git}"
 CLI_REF="${CLI_REF:-main}"
