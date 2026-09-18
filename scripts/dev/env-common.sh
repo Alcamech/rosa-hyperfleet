@@ -16,6 +16,7 @@
 #   chain_exit_trap       — Chain a new EXIT handler with any existing trap
 #   bastion_port_forward  — kubectl port-forward on bastion + SSM to localhost
 #   bastion_port_forward_cleanup — Tear down forwards; stop owned ECS tasks only
+#   ensure_session_manager_plugin_on_path — image PATH first, then user-cache .deb extract (CI)
 
 # Sourcing scripts should set these before sourcing:
 #   CONTAINER_ENGINE, CI_IMAGE
@@ -281,6 +282,98 @@ bastion_run_task() {
         || die "Execute command agent did not become ready (status: ${agent_status:-unknown})"
 }
 
+_SSM_PLUGIN_SEARCH_DIRS=(
+    /usr/local/sessionmanagerplugin/bin
+    /usr/bin
+    /usr/local/bin
+)
+
+_session_manager_plugin_repo_root() {
+    if [[ -n "${REPO_ROOT:-}" ]]; then
+        echo "${REPO_ROOT}"
+        return 0
+    fi
+    (cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+}
+
+_ssm_user_install_dir() {
+    local base="${SESSION_MANAGER_PLUGIN_CACHE:-$(_session_manager_plugin_repo_root)/ci/.cache/session-manager-plugin}"
+    echo "${base}/bin"
+}
+
+_session_manager_plugin_on_path() {
+    command -v session-manager-plugin >/dev/null 2>&1 && return 0
+    local dir
+    for dir in "${_SSM_PLUGIN_SEARCH_DIRS[@]}" "$(_ssm_user_install_dir)"; do
+        if [[ -n "${dir}" && -x "${dir}/session-manager-plugin" ]]; then
+            export PATH="${dir}:${PATH}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+_ssm_finalize_plugin_in_dir() {
+    local dest_dir="$1"
+    local plugin
+    plugin=$(find "${dest_dir}" -type f -name session-manager-plugin 2>/dev/null | head -1)
+    if [[ -z "${plugin}" ]]; then
+        echo "ERROR: session-manager-plugin binary not found after extract" >&2
+        return 1
+    fi
+    chmod +x "${plugin}"
+    local bindir
+    bindir="$(dirname "${plugin}")"
+    mkdir -p "${dest_dir}/bin"
+    ln -sf "${plugin}" "${dest_dir}/bin/session-manager-plugin"
+    export PATH="${dest_dir}/bin:${bindir}:${PATH}"
+}
+
+# Prefer image-baked plugin; on-demand `from: src` pods may need a one-time user-cache install.
+ensure_session_manager_plugin_on_path() {
+    if _session_manager_plugin_on_path; then
+        return 0
+    fi
+
+    echo "=== Installing session-manager-plugin (user cache) ==="
+    local arch tmp_dir deb cache_root repo_root
+    arch=$(uname -m)
+    case "${arch}" in
+        x86_64) arch=64bit ;;
+        aarch64) arch=arm64 ;;
+        *)
+            echo "ERROR: unsupported architecture for session-manager-plugin: ${arch}" >&2
+            return 1
+            ;;
+    esac
+
+    repo_root="$(_session_manager_plugin_repo_root)"
+    tmp_dir=$(mktemp -d)
+    cache_root="${SESSION_MANAGER_PLUGIN_CACHE:-${repo_root}/ci/.cache/session-manager-plugin}"
+    mkdir -p "${cache_root}"
+    deb="${tmp_dir}/session-manager-plugin.deb"
+    curl -fsSL --retry 3 --retry-delay 2 --max-time 300 \
+        "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_${arch}/session-manager-plugin.deb" \
+        -o "${deb}"
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "${repo_root}/ci/extract-deb-data.py" "${deb}" "${cache_root}/.deb-extract"
+        _ssm_finalize_plugin_in_dir "${cache_root}/.deb-extract"
+    else
+        rm -rf "${tmp_dir}"
+        echo "ERROR: python3 required to install session-manager-plugin in CI pod" >&2
+        return 1
+    fi
+    rm -rf "${tmp_dir}"
+
+    if _session_manager_plugin_on_path; then
+        session-manager-plugin --version
+        return 0
+    fi
+    echo "ERROR: session-manager-plugin install failed" >&2
+    return 1
+}
+
 # Register cleanup_fn as the EXIT handler and chain the previously-registered trap.
 chain_exit_trap() {
     local fn="$1"
@@ -321,8 +414,8 @@ bastion_port_forward_cleanup() {
 bastion_port_forward() {
     local cluster_id="$1" k8s_ns="$2" k8s_svc="$3" k8s_svc_port="$4" remote_port="$5" local_port="$6"
 
-    command -v session-manager-plugin >/dev/null 2>&1 \
-        || die "session-manager-plugin not installed (required for SSM port-forward)"
+    ensure_session_manager_plugin_on_path \
+        || die "session-manager-plugin not available (required for SSM port-forward)"
 
     BASTION_PF_SSM_PID=""
     BASTION_PF_BASTION_PIDS=()

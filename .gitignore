@@ -33,7 +33,8 @@ ephemeral-logs*
 # AWS account IDs (sensitive - never commit)
 .accounts-*.json
 
-# CI local caches (session-manager-plugin RPM extract)
+ci/.cache/
+
 # Ephemeral environment state
 .ephemeral-envs
 .ephemeral-envs.tmp
