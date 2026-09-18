@@ -143,4 +143,4 @@ users:
 ## Related Documentation
 
 - [aws-iam-authenticator](https://github.com/kubernetes-sigs/aws-iam-authenticator)
-- [kube-applier Resource Distribution](kube-applier-resource-distribution.md)
+- [kube-applier Resource Distribution](kube-applier-architecture.md)
