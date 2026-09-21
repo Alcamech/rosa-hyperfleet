@@ -182,7 +182,6 @@ kubectl get nodes
 
 The generated kubeconfig uses `rosactl` as a credential plugin, which signs requests with your active AWS credentials. Make sure the same credentials you used during cluster creation are active.
 
-
 ### ROSA CLI
 
 TBD
