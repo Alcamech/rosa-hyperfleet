@@ -1,6 +1,6 @@
 # Metrics Platform Overview
 
-**Last Updated**: 2026-05-13
+**Last Updated**: 2026-09-22
 
 ## Summary
 
@@ -15,7 +15,7 @@ graph TB
     subgraph MC["Management Cluster"]
         MC_KSM["kube-state-metrics"]
         MC_NE["node-exporter"]
-        MC_YACE["YACE<br/>EKS CloudWatch"]
+        MC_YACE["YACE<br/>EKS, Lambda, SQS,<br/>ZOA EMF"]
         MC_SM["ServiceMonitors<br/>app metrics"]
         MC_PROM["Prometheus (HA)"]
         MC_SIGV4["sigv4-proxy"]
@@ -36,7 +36,7 @@ graph TB
     subgraph RC["Regional Cluster"]
         RC_KSM["kube-state-metrics"]
         RC_NE["node-exporter"]
-        RC_YACE["YACE<br/>EKS, RDS, ALB,<br/>API GW, DynamoDB, ACM"]
+        RC_YACE["YACE<br/>EKS, RDS, ALB,<br/>API GW, DynamoDB, ACM,<br/>Lambda, SQS, ZOA EMF"]
         RC_SM["ServiceMonitors<br/>app metrics"]
         RC_PROM["Prometheus (HA)"]
         RECEIVE["Thanos Receive<br/>router + ingesters"]
@@ -109,21 +109,36 @@ YACE polls AWS CloudWatch APIs and exposes metrics in Prometheus format. Both cl
 
 **Regional Cluster** scrapes:
 
-| AWS Namespace                 | Metrics                                                                                            | Purpose                       |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `AWS/EKS`                     | apiserver_storage_size_bytes, scheduler_pending_pods, scheduler_schedule_attempts_total            | EKS control plane health      |
-| `AWS/DynamoDB` (kube-applier) | ConsumedRead/WriteCapacityUnits, ReturnedRecordsCount, ThrottledRequests                           | kube-applier desire tables    |
-| `AWS/ApiGateway`              | Count, Latency, 4XX/5XXError, IntegrationLatency                                                   | Platform + RHOBS API Gateways |
-| `AWS/RDS`                     | CPUUtilization, FreeableMemory, ReadLatency, WriteLatency, BurstBalance, DatabaseConnections, IOPS | hyperfleet-db                 |
-| `AWS/ApplicationELB`          | RequestCount, TargetResponseTime, HealthyHostCount, HTTPCode counts                                | API load balancer             |
-| `AWS/DynamoDB`                | ConsumedRead/WriteCapacityUnits, UserErrors, ThrottledRequests, SuccessfulRequestLatency           | Authorization tables          |
-| `AWS/CertificateManager`      | DaysToExpiry                                                                                       | API certificate lifecycle     |
+| AWS Namespace                 | Metrics                                                                                            | Purpose                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `AWS/EKS`                     | apiserver_storage_size_bytes, scheduler_pending_pods, scheduler_schedule_attempts_total            | EKS control plane health             |
+| `AWS/DynamoDB` (kube-applier) | ConsumedRead/WriteCapacityUnits, ReturnedRecordsCount, ThrottledRequests                           | kube-applier desire tables           |
+| `AWS/ApiGateway`              | Count, Latency, 4XX/5XXError, IntegrationLatency                                                   | Platform + RHOBS API Gateways        |
+| `AWS/RDS`                     | CPUUtilization, FreeableMemory, ReadLatency, WriteLatency, BurstBalance, DatabaseConnections, IOPS | hyperfleet-db                        |
+| `AWS/ApplicationELB`          | RequestCount, TargetResponseTime, HealthyHostCount, HTTPCode counts                                | API load balancer                    |
+| `AWS/DynamoDB`                | ConsumedRead/WriteCapacityUnits, UserErrors, ThrottledRequests, SuccessfulRequestLatency           | Authorization tables                 |
+| `AWS/CertificateManager`      | DaysToExpiry                                                                                       | API certificate lifecycle            |
+| `AWS/Lambda`                  | Invocations, Errors, Throttles, Duration, ConcurrentExecutions                                     | ZOA Lambda functions (tag `Cluster`) |
+| `AWS/SQS`                     | ApproximateNumberOfMessagesVisible, ApproximateAgeOfOldestMessage                                  | ZOA DLQ (`*-zoa-dlq`, tag `Cluster`) |
+| `ZOA` (EMF custom namespace)  | ExecutionCount, HttpRequestCount, ReconcilerLastRun, GCLastRun, RejectionCount, and others         | ZOA business metrics from Lambda EMF |
 
 **Management Cluster** scrapes:
 
-| AWS Namespace | Metrics                                                                                 | Purpose                  |
-| ------------- | --------------------------------------------------------------------------------------- | ------------------------ |
-| `AWS/EKS`     | apiserver_storage_size_bytes, scheduler_pending_pods, scheduler_schedule_attempts_total | EKS control plane health |
+| AWS Namespace                | Metrics                                                                                 | Purpose                              |
+| ---------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------ |
+| `AWS/EKS`                    | apiserver_storage_size_bytes, scheduler_pending_pods, scheduler_schedule_attempts_total | EKS control plane health             |
+| `AWS/Lambda`                 | Invocations, Errors, Throttles, Duration, ConcurrentExecutions                          | ZOA Lambda functions (tag `Cluster`) |
+| `AWS/SQS`                    | ApproximateNumberOfMessagesVisible, ApproximateAgeOfOldestMessage                       | ZOA DLQ (`*-zoa-dlq`, tag `Cluster`) |
+| `ZOA` (EMF custom namespace) | Same EMF metrics as RC                                                                  | ZOA business metrics from Lambda EMF |
+
+ZOA YACE configuration lives in `argocd/config/regional-cluster/cloudwatch-exporter/values.yaml` (RC) and `argocd/config/management-cluster/cloudwatch-exporter/values.yaml` (MC). Both use a 120s scrape period (600s for GC EMF metrics). Lambda discovery uses `dimensionNameRequirements: [FunctionName]` to avoid high-cardinality `Resource` dimensions.
+
+**Ephemeral environments** share one AWS account across many clusters. Because the `ZOA` customNamespace job has no tag filter, two guards apply only when `global.environment=ephemeral`:
+
+1. **`recentlyActiveOnly: true`** on the ZOA customNamespace job — limits CloudWatch `ListMetrics` to metrics active in the last 3 hours, skipping stale series from torn-down clusters.
+2. **ServiceMonitor metric relabeling** — drops `aws_zoa_*` series whose `dimension_Cluster` does not match the current `global.cluster_name` (mark-then-drop pattern in `cloudwatch-exporter/templates/servicemonitor.yaml`).
+
+Integration, stage, and production use one cluster per AWS account, so neither guard is needed there.
 
 ### Thanos HA Deduplication
 
@@ -157,6 +172,8 @@ Grafana on the RC queries Thanos Query Frontend for a unified view of all cluste
 | RDS                           | RC      | CPU, burst balance, connections, IOPS, storage (CW)                              |
 | ALB                           | RC      | Request count, response time, healthy hosts (CW)                                 |
 | DynamoDB                      | RC      | Read/write capacity, latency, throttled requests (CW)                            |
+| Lambda                        | RC + MC | Lambda invocations/errors/throttles/duration/concurrency, SQS DLQ depth (CW)     |
+| ZOA                           | RC + MC | Unified: SLIs, TA executions, HTTP API, worker pipeline + Lambda/DLQ/DynamoDB    |
 | Platform Services             | RC      | ACM certificate expiry (CW)                                                      |
 | HCP Health                    | RC + MC | Hosted control plane status                                                      |
 | ArgoCD Application Overview   | RC      | Application sync status, health                                                  |
@@ -166,6 +183,8 @@ Grafana on the RC queries Thanos Query Frontend for a unified view of all cluste
 Additionally, three community dashboards are imported from grafana.com: Node Exporter Full (1860), Kubernetes Cluster Monitoring (7249), and Kubernetes Pods (6417).
 
 Dashboards are provisioned as ConfigMaps via Helm templates and loaded by the Grafana sidecar.
+
+ZOA CloudWatch metrics (native `AWS/Lambda` / `AWS/SQS` plus custom namespace `ZOA` from EMF) are scraped by YACE on both RC and MC. YACE exports CloudWatch statistics as **gauges** for the scrape period (120s); PromQL must not use `rate()` / `increase()` on those series. Alerts live in `alerting-rules/templates/zoa.yaml` and use `sum by (cluster)` so a broken MC pages with its own `cluster` label. Reconciler liveness is `time() - last ReconcilerLastRun` (unix seconds emitted each tick), not cluster enumeration.
 
 ## Data Retention
 
