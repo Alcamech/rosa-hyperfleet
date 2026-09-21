@@ -75,7 +75,7 @@ This list is not complete, but some key ones are:
 
 A kube-applier controller runs on each Management Cluster, reading desire documents from DynamoDB tables (written by the hyperfleet-operator in the RC account) via hyperfleet-dynamo GSI polling and applying them to the local Kubernetes API. If the MC API is non-responsive, observability alerts notify SREs.
 
-For the current architecture, see [HyperFleet Architecture](design/hyperfleet-architecture.md).
+For the current architecture, see [HyperFleet Architecture](design/regional-control-plane-architecture.md).
 
 ### How are new regions deployed?
 
@@ -116,7 +116,7 @@ An AWS feature that enables private connectivity between API Gateway and VPC res
 
 **No** — OCM, CS, and AMS are replaced by the **hyperfleet-operator**, developed as part of the HyperFleet project. One hyperfleet-operator instance runs in each Regional Cluster, backed by hyperfleet-db (Aurora PostgreSQL) as the single source of truth for cluster state.
 
-For architecture details, see [HyperFleet Architecture](design/hyperfleet-architecture.md).
+For architecture details, see [HyperFleet Architecture](design/regional-control-plane-architecture.md).
 
 ### Is this design without App-Interface in favor of ArgoCD?
 
