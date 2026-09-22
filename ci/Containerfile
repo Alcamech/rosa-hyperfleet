@@ -144,6 +144,8 @@ RUN arch=$(uname -m) && \
     aws --version
 
 # Session Manager plugin (SSM port-forward to ephemeral bastion)
+# Bump SESSION_MANAGER_PLUGIN_BUILD to invalidate stale src image layer cache in CI.
+ARG SESSION_MANAGER_PLUGIN_BUILD=2
 ARG CURL_RETRY
 ARG CURL_RETRY_DELAY
 ARG CURL_MAX_TIME
