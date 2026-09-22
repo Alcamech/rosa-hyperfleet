@@ -60,10 +60,8 @@ start_alertmanager_forward() {
   _register_am_cleanup_trap
 
   echo "=== Alertmanager forward: cluster_id=${cluster_id} ==="
-  if ! (
-    export REPO_ROOT="${repo_root}"
-    bastion_port_forward "${cluster_id}" monitoring monitoring-alertmanager 9093 "${remote_port}" "${local_port}"
-  ); then
+  export REPO_ROOT="${repo_root}"
+  if ! bastion_port_forward "${cluster_id}" monitoring monitoring-alertmanager 9093 "${remote_port}" "${local_port}"; then
     cleanup_alertmanager_forward
     return 1
   fi

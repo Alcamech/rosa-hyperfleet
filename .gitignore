@@ -33,8 +33,6 @@ ephemeral-logs*
 # AWS account IDs (sensitive - never commit)
 .accounts-*.json
 
-ci/.cache/
-
 # Ephemeral environment state
 .ephemeral-envs
 .ephemeral-envs.tmp
