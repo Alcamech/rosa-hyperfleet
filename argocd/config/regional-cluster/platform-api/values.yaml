@@ -25,9 +25,6 @@ platformApi:
     args:
       logLevel: info
       logFormat: json
-      allowedAccounts: "123456789012"
-      dynamodbRegion: us-east-2
-      dynamodbPrefix: rosa
       oidcIssuerBaseURL: ""
       # Auto-delete clusters this long after creation when the caller does not
       # supply an explicit spec.expirationTimestamp. Go duration (e.g. "24h").
