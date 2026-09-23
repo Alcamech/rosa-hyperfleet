@@ -51,6 +51,8 @@ spec:
             - --default-cluster-expiration={{ .Values.platformApi.app.args.defaultClusterExpiration }}
             {{- end }}
           env:
+            - name: AWS_REGION
+              value: {{ .Values.global.aws_region | quote }}
             - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:
