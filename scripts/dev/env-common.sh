@@ -13,11 +13,21 @@
 #   init_aws_config       — Create temp AWS config dir + EXIT trap
 #   write_container_config — Resolve profiles to static creds for container mount
 #   bastion_run_task      — Core ECS bastion task launch and readiness logic
+#   chain_exit_trap       — Chain a new EXIT handler with any existing trap
+#   bastion_port_forward  — kubectl port-forward on bastion + SSM to localhost
+#   bastion_port_forward_cleanup — Tear down forwards; stop owned ECS tasks only
+#   require_session_manager_plugin — fail if session-manager-plugin is not on PATH
 
 # Sourcing scripts should set these before sourcing:
 #   CONTAINER_ENGINE, CI_IMAGE
 
-die() { echo "Error: $*" >&2; exit 1; }
+die() {
+    echo "Error: $*" >&2
+    if [[ "${BASTION_SOFT_FAIL:-}" == "1" ]]; then
+        return 1
+    fi
+    exit 1
+}
 
 # Resolve the base SAML credentials from a credential_process profile.
 # The credential_process is not cached by the AWS CLI, so this always returns
@@ -199,6 +209,7 @@ EOF
 bastion_run_task() {
     local cluster_id="$1"
     export ecs_cluster="${cluster_id}-bastion"
+    export bastion_task_owned=false
 
     echo "==> Checking for running bastion tasks..."
     local existing_task
@@ -209,6 +220,7 @@ bastion_run_task() {
         export task_id=$(echo "$existing_task" | awk -F'/' '{print $NF}')
         echo "==> Found existing running task: $task_id"
     else
+        export bastion_task_owned=true
         echo "==> No running task found, starting a new one..."
 
         local task_def="${cluster_id}-bastion"
@@ -268,4 +280,96 @@ bastion_run_task() {
     done
     [[ "$agent_status" == "RUNNING" ]] \
         || die "Execute command agent did not become ready (status: ${agent_status:-unknown})"
+}
+
+# CI image installs the plugin in ci/Containerfile; local dev should use `make check-session-manager-plugin`.
+require_session_manager_plugin() {
+    if command -v session-manager-plugin >/dev/null 2>&1; then
+        return 0
+    fi
+    local dir
+    for dir in /usr/local/sessionmanagerplugin/bin /usr/bin /usr/local/bin; do
+        if [[ -n "${dir}" && -x "${dir}/session-manager-plugin" ]]; then
+            export PATH="${dir}:${PATH}"
+            return 0
+        fi
+    done
+    die "session-manager-plugin not found (required for SSM port-forward; see ci/Containerfile or https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)"
+}
+
+# Register cleanup_fn as the EXIT handler and chain the previously-registered trap.
+chain_exit_trap() {
+    local fn="$1"
+    _chain_exit_prev=$(trap -p EXIT | sed "s/^trap -- '//;s/' EXIT$//")
+    trap "${fn}; eval \"\$_chain_exit_prev\"" EXIT
+}
+
+# PIDs and ECS context set by bastion_port_forward (read by bastion_port_forward_cleanup).
+BASTION_PF_SSM_PID=""
+BASTION_PF_BASTION_PIDS=()
+
+# Stop SSM/kubectl port-forwards and stop the bastion task only when this caller launched it.
+bastion_port_forward_cleanup() {
+    if [[ -n "${BASTION_PF_SSM_PID}" ]]; then
+        kill "${BASTION_PF_SSM_PID}" 2>/dev/null || true
+        wait "${BASTION_PF_SSM_PID}" 2>/dev/null || true
+        BASTION_PF_SSM_PID=""
+    fi
+    local pid
+    for pid in "${BASTION_PF_BASTION_PIDS[@]}"; do
+        kill "${pid}" 2>/dev/null || true
+        wait "${pid}" 2>/dev/null || true
+    done
+    BASTION_PF_BASTION_PIDS=()
+
+    if [[ -n "${ecs_cluster:-}" && -n "${task_id:-}" ]]; then
+        aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
+            --interactive --command "pkill -f 'kubectl.port-forward' || true" &>/dev/null || true
+        if [[ "${bastion_task_owned:-false}" == "true" ]]; then
+            aws ecs stop-task --cluster "${ecs_cluster}" --task "${task_id}" &>/dev/null || true
+            bastion_task_owned=false
+        fi
+    fi
+}
+
+# Bastion kubectl port-forward + SSM tunnel to localhost.
+# Args: cluster_id k8s_namespace k8s_service k8s_service_port remote_port local_port
+bastion_port_forward() {
+    local cluster_id="$1" k8s_ns="$2" k8s_svc="$3" k8s_svc_port="$4" remote_port="$5" local_port="$6"
+
+    require_session_manager_plugin
+
+    BASTION_PF_SSM_PID=""
+    BASTION_PF_BASTION_PIDS=()
+
+    bastion_run_task "${cluster_id}"
+
+    local runtime_id target
+    runtime_id=$(aws ecs describe-tasks --cluster "${ecs_cluster}" --tasks "${task_id}" \
+        --query 'tasks[0].containers[?name==`bastion`].runtimeId | [0]' --output text)
+    if [[ -z "${runtime_id}" || "${runtime_id}" == "None" ]]; then
+        die "runtime_id not found for bastion task ${task_id} in cluster ${ecs_cluster}"
+    fi
+    target="ecs:${ecs_cluster}_${task_id}_${runtime_id}"
+
+    echo "==> Cleaning up stale port-forwards on bastion..."
+    aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
+        --interactive --command "pkill -f 'kubectl.port-forward' || true" &>/dev/null || true
+    sleep 2
+
+    echo "==> [bastion] kubectl port-forward svc/${k8s_svc} ${remote_port}:${k8s_svc_port} -n ${k8s_ns}"
+    aws ecs execute-command --cluster "${ecs_cluster}" --task "${task_id}" --container bastion \
+        --interactive \
+        --command "kubectl port-forward svc/${k8s_svc} ${remote_port}:${k8s_svc_port} -n ${k8s_ns} --address 0.0.0.0" &
+    BASTION_PF_BASTION_PIDS+=($!)
+
+    echo "==> Waiting for kubectl port-forward to be ready..."
+    sleep 5
+
+    echo "==> [local] SSM forwarding localhost:${local_port} -> bastion:${remote_port}"
+    aws ssm start-session \
+        --target "${target}" \
+        --document-name AWS-StartPortForwardingSession \
+        --parameters "{\"portNumber\":[\"${remote_port}\"],\"localPortNumber\":[\"${local_port}\"]}" &
+    BASTION_PF_SSM_PID=$!
 }

@@ -1,4 +1,4 @@
-.PHONY: help terraform-fmt terraform-init terraform-validate terraform-upgrade terraform-output-management terraform-output-regional helm-lint check-rendered-files promtool-test ephemeral-provision ephemeral-teardown ephemeral-resync ephemeral-list ephemeral-shell ephemeral-bastion-rc ephemeral-bastion-mc ephemeral-post-account-shell ephemeral-port-forward-rc ephemeral-port-forward-mc ephemeral-port-forward-rc-all ephemeral-port-forward-mc-all ephemeral-sre-ui ephemeral-e2e ephemeral-dump-env int-shell int-bastion-rc int-bastion-mc int-port-forward-rc int-port-forward-mc int-port-forward-rc-all int-port-forward-mc-all int-e2e int-dump-env stage-shell stage-bastion-rc stage-bastion-mc stage-port-forward-rc stage-port-forward-mc stage-port-forward-rc-all stage-port-forward-mc-all stage-e2e stage-dump-env check-docs check-default-tags pre-push render
+.PHONY: help terraform-fmt terraform-init terraform-validate terraform-upgrade terraform-output-management terraform-output-regional helm-lint check-rendered-files promtool-test check-session-manager-plugin ephemeral-provision ephemeral-teardown ephemeral-resync ephemeral-list ephemeral-shell ephemeral-bastion-rc ephemeral-bastion-mc ephemeral-post-account-shell ephemeral-port-forward-rc ephemeral-port-forward-mc ephemeral-port-forward-rc-all ephemeral-port-forward-mc-all ephemeral-sre-ui ephemeral-e2e ephemeral-dump-env int-shell int-bastion-rc int-bastion-mc int-port-forward-rc int-port-forward-mc int-port-forward-rc-all int-port-forward-mc-all int-e2e int-dump-env stage-shell stage-bastion-rc stage-bastion-mc stage-port-forward-rc stage-port-forward-mc stage-port-forward-rc-all stage-port-forward-mc-all stage-e2e stage-dump-env check-docs check-default-tags pre-push render
 
 # =============================================================================
 # Local tool management
@@ -31,6 +31,14 @@ $(LOCALBIN)/yq: | $(LOCALBIN)
 	@curl -fsSL "https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(UNAME_S)_$(ARCH)" -o $(LOCALBIN)/yq
 	@chmod +x $(LOCALBIN)/yq
 	@echo "   ✅ yq $(YQ_VERSION) installed to $(LOCALBIN)/yq"
+
+check-session-manager-plugin: ## Verify AWS session-manager-plugin is installed (SSM port-forward)
+	@PATH="/usr/local/sessionmanagerplugin/bin:$$PATH"; \
+	command -v session-manager-plugin >/dev/null 2>&1 || { \
+	  echo "❌ session-manager-plugin not found (required for bastion port-forward and silence e2e)."; \
+	  echo "   Install: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html"; \
+	  exit 1; \
+	}
 
 # Default target — interactive fzf picker, falls back to formatted list
 help: ## Show this help message
@@ -235,22 +243,22 @@ ephemeral-post-account-shell: ## Register a customer AWS account with the platfo
 ephemeral-bastion-mc: ## Connect to MC bastion in an ephemeral env
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh bastion --cluster-type management
 
-ephemeral-port-forward-rc: ## Port-forward to RC service in an ephemeral env
+ephemeral-port-forward-rc: check-session-manager-plugin ## Port-forward to RC service in an ephemeral env
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh port-forward --cluster-type regional
 
-ephemeral-port-forward-mc: ## Port-forward to MC service in an ephemeral env
+ephemeral-port-forward-mc: check-session-manager-plugin ## Port-forward to MC service in an ephemeral env
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh port-forward --cluster-type management
 
-ephemeral-port-forward-rc-all: ## Port-forward all RC services in an ephemeral env
+ephemeral-port-forward-rc-all: check-session-manager-plugin ## Port-forward all RC services in an ephemeral env
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh port-forward --cluster-type regional --all
 
-ephemeral-port-forward-mc-all: ## Port-forward all MC services in an ephemeral env
+ephemeral-port-forward-mc-all: check-session-manager-plugin ## Port-forward all MC services in an ephemeral env
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh port-forward --cluster-type management --all
 
-ephemeral-sre-ui: ## Tunnel SRE UI tools (Grafana, ArgoCD, Prometheus, Thanos, Loki) through the internal ALB via bastion
+ephemeral-sre-ui: check-session-manager-plugin ## Tunnel SRE UI tools (Grafana, ArgoCD, Prometheus, Thanos, Loki) through the internal ALB via bastion
 	@ID="$(ID)" ./scripts/dev/ephemeral-env.sh sre-ui
 
-ephemeral-e2e: ## Run e2e tests against an ephemeral env
+ephemeral-e2e: check-session-manager-plugin ## Run e2e tests against an ephemeral env
 	@ID="$(ID)" E2E_REF="$(or $(E2E_REF),main)" E2E_REPO="$(E2E_REPO)" ./scripts/dev/ephemeral-env.sh e2e
 
 ephemeral-zoa-e2e: ## Run zoa's deep e2e suite against an ephemeral env (ZOA_REF/ZOA_REPO to target a branch/fork)
@@ -277,19 +285,19 @@ int-bastion-rc: ## Connect to RC bastion in int env
 int-bastion-mc: ## Connect to MC bastion in int env
 	@./scripts/dev/int-env.sh bastion --cluster-type management
 
-int-port-forward-rc: ## Port-forward to RC service in int env
+int-port-forward-rc: check-session-manager-plugin ## Port-forward to RC service in int env
 	@./scripts/dev/int-env.sh port-forward --cluster-type regional
 
-int-port-forward-mc: ## Port-forward to MC service in int env
+int-port-forward-mc: check-session-manager-plugin ## Port-forward to MC service in int env
 	@./scripts/dev/int-env.sh port-forward --cluster-type management
 
-int-port-forward-rc-all: ## Port-forward all RC services in int env
+int-port-forward-rc-all: check-session-manager-plugin ## Port-forward all RC services in int env
 	@./scripts/dev/int-env.sh port-forward --cluster-type regional --all
 
-int-port-forward-mc-all: ## Port-forward all MC services in int env
+int-port-forward-mc-all: check-session-manager-plugin ## Port-forward all MC services in int env
 	@./scripts/dev/int-env.sh port-forward --cluster-type management --all
 
-int-e2e: ## Run e2e tests against int env
+int-e2e: check-session-manager-plugin ## Run e2e tests against int env
 	@E2E_REF="$(or $(E2E_REF),main)" E2E_REPO="$(E2E_REPO)" ./scripts/dev/int-env.sh e2e
 
 int-dump-env: ## Dump EKS must-gather and DB state from int env (CLUSTER=rc|mc)
@@ -310,19 +318,19 @@ stage-bastion-rc: ## Connect to RC bastion in stage env
 stage-bastion-mc: ## Connect to MC bastion in stage env
 	@./scripts/dev/stage-env.sh bastion --cluster-type management
 
-stage-port-forward-rc: ## Port-forward to RC service in stage env
+stage-port-forward-rc: check-session-manager-plugin ## Port-forward to RC service in stage env
 	@./scripts/dev/stage-env.sh port-forward --cluster-type regional
 
-stage-port-forward-mc: ## Port-forward to MC service in stage env
+stage-port-forward-mc: check-session-manager-plugin ## Port-forward to MC service in stage env
 	@./scripts/dev/stage-env.sh port-forward --cluster-type management
 
-stage-port-forward-rc-all: ## Port-forward all RC services in stage env
+stage-port-forward-rc-all: check-session-manager-plugin ## Port-forward all RC services in stage env
 	@./scripts/dev/stage-env.sh port-forward --cluster-type regional --all
 
-stage-port-forward-mc-all: ## Port-forward all MC services in stage env
+stage-port-forward-mc-all: check-session-manager-plugin ## Port-forward all MC services in stage env
 	@./scripts/dev/stage-env.sh port-forward --cluster-type management --all
 
-stage-e2e: ## Run e2e tests against stage env
+stage-e2e: check-session-manager-plugin ## Run e2e tests against stage env
 	@E2E_REF="$(or $(E2E_REF),main)" E2E_REPO="$(E2E_REPO)" ./scripts/dev/stage-env.sh e2e
 
 stage-dump-env: ## Dump EKS must-gather and DB state from stage env (CLUSTER=rc|mc)

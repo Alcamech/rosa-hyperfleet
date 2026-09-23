@@ -87,6 +87,8 @@ export AWS_PROFILE="rrp-rc"
 export AWS_DEFAULT_REGION="${AWS_REGION:-us-east-1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export REPO_ROOT
+export PATH="/usr/local/sessionmanagerplugin/bin:/usr/bin:/usr/local/bin:${PATH}"
 
 # Compute CLUSTER_PREFIX early so it's available for pre-cleanup hooks (log
 # collection while HCPs still exist), not just in the post-test failure handler.
@@ -279,6 +281,21 @@ if [[ "$_have_customer_creds" == "true" ]]; then
       echo "E2E_SKIP_CLEANUP is set — cleanup specs will be skipped"
       export E2E_LABEL_FILTER='!cleanup'
     fi
+
+    # Opt-in silence e2e: tunnel regional Alertmanager for ephemeral CI unless caller
+    # already set ALERTMANAGER_URL / E2E_ALERTMANAGER_URL (local dev wrappers).
+    if [[ "${E2E_SKIP_ALERTMANAGER_FORWARD:-}" != "true" ]]; then
+      if [[ -z "${ALERTMANAGER_URL:-}" && -z "${E2E_ALERTMANAGER_URL:-}" && -n "${CLUSTER_PREFIX:-}" ]]; then
+        echo "=== Alertmanager tunnel for silence e2e specs ==="
+        # shellcheck source=ci/alertmanager-forward.sh
+        if source "${REPO_ROOT}/ci/alertmanager-forward.sh" && start_alertmanager_forward; then
+          echo "Silence e2e specs enabled (E2E_ALERTMANAGER_URL=${E2E_ALERTMANAGER_URL})"
+        else
+          echo "WARNING: Alertmanager tunnel failed — silence-installing/silence-ready specs will skip" >&2
+        fi
+      fi
+    fi
+
     make test-e2e-cli || return $?
 
     echo "HCP creation test completed for: ${HCP_CLUSTER_NAME}"
