@@ -100,9 +100,11 @@ argocd/
 └── README.md
 
 .chai-bot/                    # Chai Bot scheduled tasks
-├── rosa_hyperfleet_ci_daily_health_report.md   # Daily CI health report
-├── rosa_hyperfleet_ci_weekly_status.md          # Weekly Jira epic progress + PR stats
-└── rosa_hyperfleet_docs_update.md               # Weekly doc staleness detection & update PRs
+├── rosa_hyperfleet_adversary_scan.md             # On-demand single-repo adversary security scan
+├── rosa_hyperfleet_ci_daily_health_report.md     # Daily CI health report
+├── rosa_hyperfleet_ci_weekly_status.md            # Weekly Jira epic progress + PR stats
+├── rosa_hyperfleet_docs_update.md                 # Weekly doc staleness detection & update PRs
+└── rosa_hyperfleet_weekly_security_report.md      # Weekly consolidated adversary scan across all repos
 
 docs/
 ├── README.md                 # Architecture overview

@@ -143,6 +143,28 @@ RUN arch=$(uname -m) && \
     rm -rf awscliv2.zip ./aws && \
     aws --version
 
+# Session Manager plugin (SSM port-forward to ephemeral bastion)
+# Bump SESSION_MANAGER_PLUGIN_BUILD to invalidate stale pipeline:src layer cache in CI.
+ARG SESSION_MANAGER_PLUGIN_BUILD=1
+ARG CURL_RETRY
+ARG CURL_RETRY_DELAY
+ARG CURL_MAX_TIME
+RUN arch=$(uname -m) && \
+    case "${arch}" in \
+        x86_64)  SM_ARCH="64bit" ;; \
+        aarch64) SM_ARCH="arm64" ;; \
+    esac && \
+    curl --retry ${CURL_RETRY} --retry-delay ${CURL_RETRY_DELAY} --max-time ${CURL_MAX_TIME} -fsSL \
+        "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_${SM_ARCH}/session-manager-plugin.rpm" \
+        -o /tmp/session-manager-plugin.rpm && \
+    dnf install -y /tmp/session-manager-plugin.rpm && \
+    rm -f /tmp/session-manager-plugin.rpm && \
+    chmod -R a+rx /usr/local/sessionmanagerplugin && \
+    ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin && \
+    session-manager-plugin --version
+
+ENV PATH="/usr/local/sessionmanagerplugin/bin:/usr/bin:/usr/local/bin:${PATH}"
+
 # yq (YAML processor)
 ARG CURL_RETRY
 ARG CURL_RETRY_DELAY
