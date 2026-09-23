@@ -89,9 +89,6 @@ export AWS_DEFAULT_REGION="${AWS_REGION:-us-east-1}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 export PATH="/usr/local/sessionmanagerplugin/bin:/usr/bin:/usr/local/bin:${PATH}"
-# shellcheck source=ci/ensure-session-manager-plugin.sh
-source "${REPO_ROOT}/ci/ensure-session-manager-plugin.sh"
-ensure_session_manager_plugin
 
 # Compute CLUSTER_PREFIX early so it's available for pre-cleanup hooks (log
 # collection while HCPs still exist), not just in the post-test failure handler.
