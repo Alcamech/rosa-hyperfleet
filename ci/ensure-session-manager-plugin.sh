@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ensure session-manager-plugin is on PATH for CI e2e (non-root OpenShift pods).
-# Prefer the image-baked binary (ci/Containerfile). When pipeline:src is reused
-# without that layer, install to a user-writable cache (no root / dnf).
+# Image install: ci/Containerfile. When pipeline:src lacks SSM on PATH, extract the
+# Ubuntu .deb into a user-writable directory (no root / dnf).
 
 set -euo pipefail
 
@@ -37,30 +37,8 @@ _finalize_plugin_tree() {
     export PATH="${cache_bin}:${bindir}:${PATH}"
 }
 
-_install_session_manager_plugin_root() {
-    echo "=== session-manager-plugin not in image PATH; installing from AWS RPM (root) ==="
-    local arch sm_arch
-    arch=$(uname -m)
-    case "${arch}" in
-        x86_64) sm_arch=64bit ;;
-        aarch64) sm_arch=arm64 ;;
-        *)
-            echo "ERROR: unsupported architecture for session-manager-plugin: ${arch}" >&2
-            return 1
-            ;;
-    esac
-
-    curl -fsSL --retry 3 --retry-delay 2 --max-time 300 \
-        "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_${sm_arch}/session-manager-plugin.rpm" \
-        -o /tmp/session-manager-plugin.rpm
-    dnf install -y /tmp/session-manager-plugin.rpm
-    rm -f /tmp/session-manager-plugin.rpm
-    chmod -R a+rx /usr/local/sessionmanagerplugin 2>/dev/null || true
-    ln -sf /usr/local/sessionmanagerplugin/bin/session-manager-plugin /usr/bin/session-manager-plugin
-}
-
 _install_session_manager_plugin_user() {
-    echo "=== session-manager-plugin not in image PATH; installing to user cache (non-root CI pod) ==="
+    echo "=== session-manager-plugin not in image PATH; installing to user cache (non-root) ==="
     local arch ubuntu_arch repo_root script_dir tmp_dir deb cache_root extract_root
     arch=$(uname -m)
     case "${arch}" in
@@ -98,11 +76,7 @@ ensure_session_manager_plugin() {
         return 0
     fi
 
-    if [[ "$(id -u)" -eq 0 ]]; then
-        _install_session_manager_plugin_root
-    else
-        _install_session_manager_plugin_user
-    fi
+    _install_session_manager_plugin_user
 
     if _session_manager_plugin_on_path; then
         session-manager-plugin --version

@@ -60,7 +60,7 @@ The CI image is built from [ci/Containerfile](ci/Containerfile) and includes all
 
 These tools are available in all CI job containers and can be used in scripts run by CI jobs.
 
-`on-demand-e2e` runs in the PR-built `pipeline:src` image as a **non-root** UID. The image should include `session-manager-plugin` (see Containerfile); when CI reuses a cached `src` build without that layer, `ci/e2e-tests.sh` calls `ci/ensure-session-manager-plugin.sh` once to extract the Ubuntu `.deb` into `/tmp` (no `dnf`). Local dev uses `make check-session-manager-plugin` and does not install at test time.
+`on-demand-e2e` runs in the PR-built `pipeline:src` image as a **non-root** UID (no `dnf` at test time). The image should include `session-manager-plugin` (see Containerfile); when CI reuses a cached `src` build without that layer, `ci/e2e-tests.sh` calls `ci/ensure-session-manager-plugin.sh` once to extract the Ubuntu `.deb` into `/tmp`. Local dev uses `make check-session-manager-plugin` and does not install at test time.
 
 ## Ephemeral Environment
 
