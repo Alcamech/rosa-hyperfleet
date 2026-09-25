@@ -1,6 +1,8 @@
 # Pipeline-Based Cluster Lifecycle Management
 
-**Last Updated Date**: 2026-03-04
+**Last Updated Date**: 2026-09-22
+
+> **Superseded for orchestration.** Cluster create, update, and destroy are moving to standalone CodeBuild (`concurrentBuildLimit: 1`, early-return, SDK-managed projects). See [codebuild-optimization.md](codebuild-optimization.md). This document remains the description of the **current** CodePipeline hierarchy until that cutover.
 
 ## Summary
 
