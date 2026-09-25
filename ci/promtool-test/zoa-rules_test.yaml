@@ -143,7 +143,7 @@ tests:
         exp_alerts: []
 
   # Reconciler stalled: mc-05 freezes after 2 ticks, mc-01 keeps ticking
-  # time() - last_run > 600 first true at t=13m, fires after for:5m at t=18m
+  # tick_count == 0 on frozen series; age check also true after 600s stale
   - interval: 1m
     input_series:
       - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-01"}'
@@ -161,6 +161,65 @@ tests:
               summary: ZOA reconciler has stopped ticking
               description: ZOA reconciler on cluster mc-05 has not ticked in >10m (expected every 60s). Async TA results will not be recorded. Check EventBridge schedule and worker Lambda health.
               runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 1-minute rate schedule is enabled. 2. Check worker Lambda health: CloudWatch, Lambda, filter by cluster, look for invocation errors or throttling. 3. Check if Lambda can reach EKS: look for circuit breaker state changes in ZOA dashboard Worker Pipeline section. 4. If EventBridge schedule is missing, re-run the ZOA Terraform module. 5. Alert auto-recovers when reconciler resumes ticking."
+
+  # Reconciler stalled: mc-05 heartbeats stop (gaps via _), mc-01 keeps ticking.
+  # In production, YACE reports NaN or nothing when Lambda stops emitting.
+  # promtool cannot inject literal NaN, but _ (missing samples) simulates
+  # the "heartbeats stop" scenario. With gaps, the recording rule itself
+  # becomes absent once last_over_time(raw[10m]) passes the last real sample,
+  # so Path 1 (tick_count == 0) and Path 2 (age check) cannot fire. Only
+  # Path 3 (count_over_time history UNLESS recent last_over_time) catches it.
+  # mc-05 has 11 samples (t=0-10), then gaps. Path 3 fires at ~t=21m
+  # (when last_over_time(raw[10m]) can no longer reach t=10m), for:5m → t=26m.
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-01"}'
+        values: "0+60x35"
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-05"}'
+        values: "0+60x10 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+    alert_rule_test:
+      - eval_time: 27m
+        alertname: ZOAReconcilerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              cluster: mc-05
+            exp_annotations:
+              summary: ZOA reconciler has stopped ticking
+              description: ZOA reconciler on cluster mc-05 has not ticked in >10m (expected every 60s). Async TA results will not be recorded. Check EventBridge schedule and worker Lambda health.
+              runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 1-minute rate schedule is enabled. 2. Check worker Lambda health: CloudWatch, Lambda, filter by cluster, look for invocation errors or throttling. 3. Check if Lambda can reach EKS: look for circuit breaker state changes in ZOA dashboard Worker Pipeline section. 4. If EventBridge schedule is missing, re-run the ZOA Terraform module. 5. Alert auto-recovers when reconciler resumes ticking."
+
+  # Reconciler stalled: mc-05 series vanishes, mc-01 keeps ticking
+  # global absent() would miss this; per-cluster unless catches it
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-01"}'
+        values: "0+60x40"
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-05"}'
+        values: "0+60x10"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: ZOAReconcilerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              cluster: mc-05
+            exp_annotations:
+              summary: ZOA reconciler has stopped ticking
+              description: ZOA reconciler on cluster mc-05 has not ticked in >10m (expected every 60s). Async TA results will not be recorded. Check EventBridge schedule and worker Lambda health.
+              runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 1-minute rate schedule is enabled. 2. Check worker Lambda health: CloudWatch, Lambda, filter by cluster, look for invocation errors or throttling. 3. Check if Lambda can reach EKS: look for circuit breaker state changes in ZOA dashboard Worker Pipeline section. 4. If EventBridge schedule is missing, re-run the ZOA Terraform module. 5. Alert auto-recovers when reconciler resumes ticking."
+
+  # Reconciler healthy: both clusters ticking → no alert
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-01"}'
+        values: "0+60x30"
+      - series: 'aws_zoa_reconciler_last_run_maximum{cluster="mc-05"}'
+        values: "0+60x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: ZOAReconcilerStalled
+        exp_alerts: []
 
   # DynamoDB throttling → warning (sustained throttling for >15m)
   - interval: 1m
@@ -337,6 +396,60 @@ tests:
               summary: ZOA garbage collector has stopped ticking
               description: ZOA GC on cluster mc-05 has not ticked in >30m (expected every 5min). Check EventBridge schedule and worker Lambda health.
               runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 5-minute rate schedule is enabled. 2. Check worker Lambda health. GC runs inside the worker Lambda. 3. If ZOAReconcilerStalled is also firing: the worker Lambda itself is likely broken, prioritize that alert. 4. Impact: stale ServiceAccounts and RBAC bindings accumulate in the MC. Not immediately dangerous but creates clutter. 5. Alert auto-recovers when GC resumes ticking."
+
+  # GC stalled: mc-05 heartbeats stop (gaps via _), mc-01 keeps ticking.
+  # Same as reconciler gap test — validates Path 3 catches GC heartbeat gaps.
+  # mc-05 has 20 samples (t=0-19), then gaps. Path 3 fires at ~t=30m
+  # (when last_over_time(raw[30m]) can no longer reach t=19m), for:10m → t=40m.
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-01"}'
+        values: "1000x5 2000x5 3000x5 4000x5 5000x5 6000x5 7000x5 8000x5 9000x5 10000x5 11000x5 12000x5 13000x5 14000x5"
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-05"}'
+        values: "1000x5 2000x5 3000x5 4000x5 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+    alert_rule_test:
+      - eval_time: 62m
+        alertname: ZOAGCStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              cluster: mc-05
+            exp_annotations:
+              summary: ZOA garbage collector has stopped ticking
+              description: ZOA GC on cluster mc-05 has not ticked in >30m (expected every 5min). Check EventBridge schedule and worker Lambda health.
+              runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 5-minute rate schedule is enabled. 2. Check worker Lambda health. GC runs inside the worker Lambda. 3. If ZOAReconcilerStalled is also firing: the worker Lambda itself is likely broken, prioritize that alert. 4. Impact: stale ServiceAccounts and RBAC bindings accumulate in the MC. Not immediately dangerous but creates clutter. 5. Alert auto-recovers when GC resumes ticking."
+
+  # GC stalled: mc-05 series vanishes, mc-01 keeps ticking
+  # mc-05 stops at t=24m; for:10m means alert fires at t>=65m
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-01"}'
+        values: "1000x5 2000x5 3000x5 4000x5 5000x5 6000x5 7000x5 8000x5 9000x5 10000x5 11000x5 12000x5 13000x5 14000x5"
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-05"}'
+        values: "1000x5 2000x5 3000x5 4000x5 5000x5"
+    alert_rule_test:
+      - eval_time: 66m
+        alertname: ZOAGCStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              cluster: mc-05
+            exp_annotations:
+              summary: ZOA garbage collector has stopped ticking
+              description: ZOA GC on cluster mc-05 has not ticked in >30m (expected every 5min). Check EventBridge schedule and worker Lambda health.
+              runbook: "1. Check EventBridge schedule: AWS Console, EventBridge, Rules, filter by cluster ID, verify 5-minute rate schedule is enabled. 2. Check worker Lambda health. GC runs inside the worker Lambda. 3. If ZOAReconcilerStalled is also firing: the worker Lambda itself is likely broken, prioritize that alert. 4. Impact: stale ServiceAccounts and RBAC bindings accumulate in the MC. Not immediately dangerous but creates clutter. 5. Alert auto-recovers when GC resumes ticking."
+
+  # GC healthy: both clusters ticking → no alert
+  - interval: 1m
+    input_series:
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-01"}'
+        values: "1000x5 2000x5 3000x5 4000x5 5000x5 6000x5 7000x5 8000x5 9000x5 10000x5 11000x5 12000x5 13000x5 14000x5"
+      - series: 'aws_zoa_gclast_run_maximum{cluster="mc-05"}'
+        values: "1000x5 2000x5 3000x5 4000x5 5000x5 6000x5 7000x5 8000x5 9000x5 10000x5 11000x5 12000x5 13000x5 14000x5"
+    alert_rule_test:
+      - eval_time: 66m
+        alertname: ZOAGCStalled
+        exp_alerts: []
 
   # GC errors: sustained errors for >10m → fires warning
   - interval: 1m

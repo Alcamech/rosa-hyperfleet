@@ -125,14 +125,28 @@ spec:
         # are never recorded — executions stay "running" forever in
         # DynamoDB, creating a silent failure mode invisible to
         # symptom-based alerts.
-        # Uses timestamp staleness (time() - last_run) which works from
-        # minute 1 — no history needed, unlike changes().
+        # Three per-cluster detection paths (never use global absent()):
+        #   1. No progress — tick_count == 0 despite recent raw heartbeats
+        #      (covers frozen timestamps and NaN from YACE gaps)
+        #   2. Valid but stale timestamp — time() - last_run > 600
+        #   3. Series vanished — had heartbeats but no recent gap-filled value
         # Threshold 600s = 10× frequency (60s) absorbs pipeline delay (~5-7min).
         - alert: ZOAReconcilerStalled
           expr: |
-            (time() - zoa:reconciler_last_run > 600)
+            (
+              zoa:reconciler_tick_count == 0
+              and on(cluster) (count_over_time(aws_zoa_reconciler_last_run_maximum[30m]) > 5)
+            )
             or
-            (absent_over_time(zoa:reconciler_last_run[10m]) == 1)
+            (
+              (time() - zoa:reconciler_last_run > 600)
+              and (zoa:reconciler_last_run > 0)
+            )
+            or
+            (
+              max by (cluster) (count_over_time(aws_zoa_reconciler_last_run_maximum[30m])) > 5
+              unless on(cluster) max by (cluster) (last_over_time(aws_zoa_reconciler_last_run_maximum[10m]))
+            )
           for: 5m
           labels:
             severity: critical
@@ -305,12 +319,24 @@ spec:
 
         # GC fires every 5min. Not immediately dangerous if stalled
         # (stale SA/RBAC accumulate, nothing breaks). Next business day.
+        # Same three-path per-cluster detection as ZOAReconcilerStalled.
         # Threshold 1800s = 6× frequency (5min) absorbs pipeline delay (~10-15min).
         - alert: ZOAGCStalled
           expr: |
-            (time() - zoa:gc_last_run > 1800)
+            (
+              zoa:gc_tick_count == 0
+              and on(cluster) (count_over_time(aws_zoa_gclast_run_maximum[1h]) > 3)
+            )
             or
-            (absent_over_time(zoa:gc_last_run[30m]) == 1)
+            (
+              (time() - zoa:gc_last_run > 1800)
+              and (zoa:gc_last_run > 0)
+            )
+            or
+            (
+              max by (cluster) (count_over_time(aws_zoa_gclast_run_maximum[1h])) > 3
+              unless on(cluster) max by (cluster) (last_over_time(aws_zoa_gclast_run_maximum[30m]))
+            )
           for: 10m
           labels:
             severity: warning
