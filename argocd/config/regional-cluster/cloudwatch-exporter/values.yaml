@@ -1,3 +1,7 @@
+global:
+  environment: ""
+  cluster_name: ""
+
 prometheus-yet-another-cloudwatch-exporter:
   fullnameOverride: cloudwatch-exporter
 
@@ -56,6 +60,14 @@ prometheus-yet-another-cloudwatch-exporter:
             statistics: [Sum]
 
     discovery:
+      exportedTagsOnMetrics:
+        AWS/Lambda:
+          - Component
+          - HandlerMode
+          - Cluster
+        AWS/SQS:
+          - Component
+          - Cluster
       jobs:
         - type: AWS/ApiGateway
           regions:
@@ -223,6 +235,105 @@ prometheus-yet-another-cloudwatch-exporter:
               statistics: [Minimum]
               nilToZero: true
 
+        - type: AWS/Lambda
+          regions:
+            - {{ .Values.global.aws_region }}
+          searchTags:
+            - key: Cluster
+              value: ^{{ .Values.global.cluster_name }}$
+          dimensionNameRequirements:
+            - FunctionName
+          period: 120
+          length: 120
+          delay: 120
+          metrics:
+            - name: Invocations
+              statistics: [Sum]
+              nilToZero: true
+            - name: Errors
+              statistics: [Sum]
+              nilToZero: true
+            - name: Throttles
+              statistics: [Sum]
+              nilToZero: true
+            - name: Duration
+              statistics: [Average, p99]
+              nilToZero: true
+            - name: ConcurrentExecutions
+              statistics: [Maximum]
+              nilToZero: true
+
+        - type: AWS/SQS
+          regions:
+            - {{ .Values.global.aws_region }}
+          searchTags:
+            - key: Cluster
+              value: ^{{ .Values.global.cluster_name }}$
+          period: 120
+          length: 120
+          delay: 120
+          metrics:
+            - name: ApproximateNumberOfMessagesVisible
+              statistics: [Maximum]
+              nilToZero: true
+            - name: ApproximateAgeOfOldestMessage
+              statistics: [Maximum]
+              nilToZero: true
+
+    customNamespace:
+      # Job name becomes the Prometheus metric prefix (zoa_execution_count_sum, etc.).
+      - name: zoa
+        namespace: ZOA
+        regions:
+          - {{ .Values.global.aws_region }}
+        {{- if eq .Values.global.environment "ephemeral" }}
+        # In shared AWS accounts (ephemeral), multiple clusters share one
+        # account. recentlyActiveOnly limits ListMetrics to metrics active
+        # in the last 3 hours, skipping stale series from torn-down clusters.
+        recentlyActiveOnly: true
+        {{- end }}
+        period: 120
+        length: 120
+        delay: 120
+        nilToZero: true
+        metrics:
+          - name: ExecutionCount
+            statistics: [Sum]
+          - name: ExecutionDuration
+            statistics: [Average, p99]
+          - name: HttpRequestCount
+            statistics: [Sum]
+          - name: HttpRequestDuration
+            statistics: [Average, p99]
+          - name: RejectionCount
+            statistics: [Sum]
+          - name: ReconcilerDuration
+            statistics: [Average, p99]
+          - name: ReconcilerErrors
+            statistics: [Sum]
+          - name: ReconcilerLastRun
+            statistics: [Maximum]
+            nilToZero: false
+          - name: GCDuration
+            statistics: [Average, p99]
+            period: 600
+            length: 600
+          - name: GCErrors
+            statistics: [Sum]
+            period: 600
+            length: 600
+          - name: GCCleanedResources
+            statistics: [Sum]
+            period: 600
+            length: 600
+          - name: GCLastRun
+            statistics: [Maximum]
+            nilToZero: false
+            period: 600
+            length: 600
+          - name: CircuitBreakerStateChange
+            statistics: [Sum]
+
   # FedRAMP SC-13 / IA-07: Use FIPS 140-2 validated AWS API endpoints.
   extraArgs:
     fips: true
@@ -231,12 +342,9 @@ prometheus-yet-another-cloudwatch-exporter:
     scraping-interval: 120
 
   serviceMonitor:
-    enabled: true
-    # Must match extraArgs.scraping-interval to avoid redundant scrapes.
-    interval: 120s
-    metricRelabelings:
-      - action: labeldrop
-        regex: "instance|pod"
+    # Disabled — wrapper chart creates its own ServiceMonitor (templates/servicemonitor.yaml)
+    # to support Helm-templated metricRelabelings (subchart uses toYaml, not tpl).
+    enabled: false
 
   # FedRAMP: non-root with read-only root filesystem
   podSecurityContext:
@@ -265,3 +373,12 @@ prometheus-yet-another-cloudwatch-exporter:
 
   aws:
     role: ""
+
+# Wrapper ServiceMonitor config (see templates/servicemonitor.yaml).
+serviceMonitor:
+  enabled: true
+  # Must match extraArgs.scraping-interval to avoid redundant scrapes.
+  interval: 120s
+  metricRelabelings:
+    - action: labeldrop
+      regex: "instance|pod"

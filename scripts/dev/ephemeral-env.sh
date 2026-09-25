@@ -1096,6 +1096,10 @@ cmd_e2e() {
     zoa_mc_api_url=$(get_field "$ENV_LINE" ZOA_MC_API_URL)
     [[ -n "$api_url" ]] \
         || die "No API_URL found for ID $BUILD_ID. Was it captured during provision?"
+    [[ -n "$zoa_rc_api_url" ]] \
+        || die "No ZOA_RC_API_URL found for ID $BUILD_ID. Was it captured during provision?"
+    [[ -n "$zoa_mc_api_url" ]] \
+        || die "No ZOA_MC_API_URL found for ID $BUILD_ID. Was it captured during provision?"
 
     # Fetch credentials and write container config
     setup_aws_config
@@ -1103,14 +1107,16 @@ cmd_e2e() {
 
     local rhobs_api_url
     rhobs_api_url=$(get_field "$ENV_LINE" RHOBS_API_URL)
+    [[ -n "$rhobs_api_url" ]] \
+        || die "No RHOBS_API_URL found for ID $BUILD_ID. Was it captured during provision?"
 
     # Run tests
     echo "Running e2e tests..."
     echo "  ID:             $BUILD_ID"
     echo "  API_URL:        $api_url"
-    echo "  RHOBS_API_URL:  ${rhobs_api_url:-<not set>}"
-    echo "  ZOA_RC_API_URL:     ${zoa_rc_api_url:-<not set>}"
-    echo "  ZOA_MC_API_URL:     ${zoa_mc_api_url:-<not set>}"
+    echo "  RHOBS_API_URL:  $rhobs_api_url"
+    echo "  ZOA_RC_API_URL: $zoa_rc_api_url"
+    echo "  ZOA_MC_API_URL: $zoa_mc_api_url"
     echo "  REGION:         $region"
     echo "  E2E_REF:        $e2e_ref"
     echo "  E2E_REPO:       $e2e_repo"
@@ -1122,9 +1128,9 @@ cmd_e2e() {
         -e "CLUSTER_PREFIX=eph-${BUILD_ID}-" \
         -e "BUILD_ID=$BUILD_ID" \
         -e "BASE_URL=$api_url" \
-        -e "RHOBS_API_URL=${rhobs_api_url:-}" \
-        -e "ZOA_RC_API_URL=${zoa_rc_api_url:-}" \
-        -e "ZOA_MC_API_URL=${zoa_mc_api_url:-}" \
+        -e "RHOBS_API_URL=$rhobs_api_url" \
+        -e "ZOA_RC_API_URL=$zoa_rc_api_url" \
+        -e "ZOA_MC_API_URL=$zoa_mc_api_url" \
         -e "AWS_DEFAULT_REGION=$region" \
         -e "AWS_REGION=$region" \
         -e "E2E_REF=$e2e_ref" \
@@ -1158,12 +1164,17 @@ cmd_zoa_e2e() {
         "Select environment for ZOA e2e tests:" \
         "No ready environments found."
 
-    local zoa_rc_api_url zoa_mc_api_url region
+    local zoa_rc_api_url zoa_mc_api_url region rhobs_api_url
     zoa_rc_api_url=$(get_field "$ENV_LINE" ZOA_RC_API_URL)
     zoa_mc_api_url=$(get_field "$ENV_LINE" ZOA_MC_API_URL)
     region=$(get_field "$ENV_LINE" REGION)
+    rhobs_api_url=$(get_field "$ENV_LINE" RHOBS_API_URL)
     [[ -n "$zoa_rc_api_url" ]] \
         || die "No ZOA_RC_API_URL found for ID $BUILD_ID. Was it captured during provision?"
+    [[ -n "$zoa_mc_api_url" ]] \
+        || die "No ZOA_MC_API_URL found for ID $BUILD_ID. Was it captured during provision?"
+    [[ -n "$rhobs_api_url" ]] \
+        || die "No RHOBS_API_URL found for ID $BUILD_ID. Was it captured during provision?"
 
     setup_aws_config
     write_eph_container_config
@@ -1171,7 +1182,8 @@ cmd_zoa_e2e() {
     echo "Running zoa e2e suite..."
     echo "  ID:             $BUILD_ID"
     echo "  ZOA_RC_API_URL: $zoa_rc_api_url"
-    echo "  ZOA_MC_API_URL: ${zoa_mc_api_url:-<not set — MC specs will be skipped>}"
+    echo "  ZOA_MC_API_URL: $zoa_mc_api_url"
+    echo "  RHOBS_API_URL:  $rhobs_api_url"
     echo "  REGION:         $region"
     echo "  ZOA_REF:        $zoa_ref"
     echo "  ZOA_REPO:       $zoa_repo"
@@ -1179,7 +1191,8 @@ cmd_zoa_e2e() {
     $CONTAINER_ENGINE run --rm \
         $_CONTAINER_AWS_FLAGS \
         -e "ZOA_RC_API_URL=$zoa_rc_api_url" \
-        -e "ZOA_MC_API_URL=${zoa_mc_api_url:-}" \
+        -e "ZOA_MC_API_URL=$zoa_mc_api_url" \
+        -e "RHOBS_API_URL=$rhobs_api_url" \
         -e "AWS_DEFAULT_REGION=$region" \
         -e "AWS_REGION=$region" \
         -e "ZOA_MAKE_TARGET=${ZOA_MAKE_TARGET:-test-e2e}" \

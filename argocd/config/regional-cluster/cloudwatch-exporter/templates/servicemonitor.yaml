@@ -1,0 +1,53 @@
+{{/*
+  Wrapper ServiceMonitor — replaces the subchart's ServiceMonitor to enable
+  Helm template rendering inside metricRelabelings (the subchart uses toYaml,
+  not tpl, so .Values.global.cluster_name is inaccessible there).
+
+  In ephemeral environments (shared AWS accounts), drops aws_zoa_* metrics
+  whose dimension_Cluster doesn't match the current cluster. This prevents
+  cross-cluster ZOA EMF pollution. In isolated accounts (int/stage/prod),
+  no filtering is applied because every cluster has its own AWS account.
+*/}}
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloudwatch-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: prometheus-yet-another-cloudwatch-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+spec:
+  endpoints:
+    - port: http
+      interval: {{ .Values.serviceMonitor.interval }}
+      metricRelabelings:
+        {{- toYaml .Values.serviceMonitor.metricRelabelings | nindent 8 }}
+        {{- if eq .Values.global.environment "ephemeral" }}
+        # Drop aws_zoa_* metrics from other clusters.
+        # YACE's customNamespace job scrapes all ZOA EMF metrics account-wide
+        # because customNamespace has no tag-based filtering. In shared AWS
+        # accounts (ephemeral), multiple clusters share one account, so we
+        # filter at scrape time.
+        #
+        # 2-step mark-then-drop works around RE2's lack of negative lookahead.
+        # Temporary __tmp_* labels are stripped automatically before storage.
+        - action: replace
+          sourceLabels: [__name__, dimension_Cluster]
+          regex: aws_zoa_.+;{{ .Values.global.cluster_name }}
+          targetLabel: __tmp_zoa_mine
+          replacement: "y"
+        - sourceLabels: [__name__, __tmp_zoa_mine]
+          regex: aws_zoa_.+;
+          action: drop
+        {{- end }}
+  jobLabel: cloudwatch-exporter
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-yet-another-cloudwatch-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
