@@ -474,6 +474,7 @@ cmd_provision() {
     else
         update_state "$ID" "provisioning-failed"
         echo "Provisioning failed. State updated to provisioning-failed."
+        echo "CodeBuild logs (if captured): $artifacts_dir"
         exit $rc
     fi
 }
