@@ -395,10 +395,14 @@ cmd_provision() {
         >> "$ENVS_FILE"
 
     # Run the ephemeral provider
-    local tmpdir
+    local tmpdir artifacts_dir
     tmpdir=$(mktemp -d)
+    artifacts_dir="${ARTIFACTS_DIR:-${ARTIFACT_DIR:-${REPO_ROOT}/.ephemeral-artifacts/${ID}}}"
+    mkdir -p "$artifacts_dir"
     _prev_trap=$(trap -p EXIT | sed "s/^trap -- '//;s/' EXIT$//")
     trap 'rm -rf "${tmpdir:-}"; eval "$_prev_trap"' EXIT
+
+    echo "  ARTIFACTS_DIR:     $artifacts_dir"
 
     local rc=0
     # shellcheck disable=SC2086
@@ -408,8 +412,10 @@ cmd_provision() {
         $OVERRIDE_MOUNT \
         -v "${REPO_ROOT}:/workspace:ro,z" \
         -v "${tmpdir}:/output:z" \
+        -v "${artifacts_dir}:/artifacts:z" \
         -w /workspace \
         -e WORKSPACE_DIR=/workspace \
+        -e ARTIFACT_DIR=/artifacts \
         "$CI_IMAGE" \
         uv run --no-cache ci/ephemeral-provider/main.py \
             --id "$ID" \
@@ -468,6 +474,7 @@ cmd_provision() {
     else
         update_state "$ID" "provisioning-failed"
         echo "Provisioning failed. State updated to provisioning-failed."
+        echo "CodeBuild logs (if captured): $artifacts_dir"
         exit $rc
     fi
 }
@@ -493,6 +500,11 @@ cmd_teardown() {
     local eph_branch_flag=""
     [[ -z "$eph_branch" ]] || eph_branch_flag="--eph-branch $eph_branch"
 
+    # Set up artifacts directory for CodeBuild logs
+    local artifacts_dir
+    artifacts_dir="${ARTIFACTS_DIR:-${ARTIFACT_DIR:-${REPO_ROOT}/.ephemeral-artifacts/${BUILD_ID}}}"
+    mkdir -p "$artifacts_dir"
+
     # Print summary
     echo "Tearing down ephemeral environment..."
     echo "  ID:                $BUILD_ID"
@@ -501,6 +513,7 @@ cmd_teardown() {
     echo "  REGION:            $region"
     echo "  CONTAINER_ENGINE:  $CONTAINER_ENGINE"
     echo "  IMAGE:             $CI_IMAGE"
+    echo "  ARTIFACTS_DIR:     $artifacts_dir"
 
     # Run teardown
     update_state "$BUILD_ID" "deprovisioning"
@@ -511,8 +524,10 @@ cmd_teardown() {
         $_CONTAINER_AWS_FLAGS \
         -e "GITHUB_TOKEN=$GITHUB_TOKEN" \
         -v "${REPO_ROOT}:/workspace:ro,z" \
+        -v "${artifacts_dir}:/artifacts:z" \
         -w /workspace \
         -e WORKSPACE_DIR=/workspace \
+        -e ARTIFACT_DIR=/artifacts \
         "$CI_IMAGE" \
         uv run --no-cache ci/ephemeral-provider/main.py \
             --teardown --id "$BUILD_ID" --repo "$repo" --branch "$branch" \
@@ -553,6 +568,11 @@ cmd_resync() {
     local eph_branch_flag=""
     [[ -z "$eph_branch" ]] || eph_branch_flag="--eph-branch $eph_branch"
 
+    # Set up artifacts directory for CodeBuild logs
+    local artifacts_dir
+    artifacts_dir="${ARTIFACTS_DIR:-${ARTIFACT_DIR:-${REPO_ROOT}/.ephemeral-artifacts/${BUILD_ID}}}"
+    mkdir -p "$artifacts_dir"
+
     # Print summary
     echo "Resyncing ephemeral environment..."
     echo "  ID:                $BUILD_ID"
@@ -561,6 +581,7 @@ cmd_resync() {
     echo "  ENV CONFIG:        $OVERRIDE_INFO"
     echo "  CONTAINER_ENGINE:  $CONTAINER_ENGINE"
     echo "  IMAGE:             $CI_IMAGE"
+    echo "  ARTIFACTS_DIR:     $artifacts_dir"
 
     # Run resync
     # shellcheck disable=SC2086
@@ -569,8 +590,10 @@ cmd_resync() {
         -e "GITHUB_TOKEN=$GITHUB_TOKEN" \
         $OVERRIDE_MOUNT \
         -v "${REPO_ROOT}:/workspace:ro,z" \
+        -v "${artifacts_dir}:/artifacts:z" \
         -w /workspace \
         -e WORKSPACE_DIR=/workspace \
+        -e ARTIFACT_DIR=/artifacts \
         "$CI_IMAGE" \
         uv run --no-cache ci/ephemeral-provider/main.py \
             --resync --id "$BUILD_ID" --repo "$repo" --branch "$branch" \
