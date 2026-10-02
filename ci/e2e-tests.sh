@@ -125,7 +125,7 @@ ZOA_REPO="${ZOA_REPO:-https://github.com/openshift-online/rosa-hyperfleet-zoa.gi
 # OCP release payload (full pullspec) for HCP creation. Empty lets the e2e /
 # operator pick their default; CI sets this to pair the cluster's OCP version
 # with the CPO/HO build under test. Consumed by the api repo's test-e2e-cli.
-export OCP_VERSION="${OCP_VERSION:-}"
+export OCP_IMAGE="${OCP_IMAGE:-}"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 # ---------------------------------------------------------------------------
