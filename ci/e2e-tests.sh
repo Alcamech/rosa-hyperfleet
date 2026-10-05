@@ -113,15 +113,17 @@ CLI_REF="${CLI_REF:-main}"
 CLI_REPO="${CLI_REPO:-https://github.com/openshift-online/rosa-hyperfleet-cli.git}"
 ROSA_REPO_URL="${ROSA_REPO_URL:-https://github.com/openshift/rosa}"
 ROSA_REPO_BRANCH="${ROSA_REPO_BRANCH:-hyperfleet-v2}"
-ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER:-}"
+ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER:-hyperfleet-sanity}"
 ROSA_TEST_PROFILE="${ROSA_TEST_PROFILE:-rosa-hcp-basic}"
-E2E_SKIP_PLATFORM_API="${E2E_SKIP_PLATFORM_API:-false}"  # Set to "true" to skip
-E2E_SKIP_HCP="${E2E_SKIP_HCP:-false}"  # Set to "true" to skip
-E2E_SKIP_MONITORING="${E2E_SKIP_MONITORING:-false}"  # Set to "true" to skip
-E2E_SKIP_ROSA_CLI="${E2E_SKIP_ROSA_CLI:-true}"  # Set to "true" to skip
-E2E_SKIP_ZOA="${E2E_SKIP_ZOA:-false}"  # Set to "true" to skip
 ZOA_REF="${ZOA_REF:-main}"
 ZOA_REPO="${ZOA_REPO:-https://github.com/openshift-online/rosa-hyperfleet-zoa.git}"
+
+E2E_SKIP_PLATFORM_API="${E2E_SKIP_PLATFORM_API:-false}"  # Set to "true" to skip
+E2E_SKIP_ZOA="${E2E_SKIP_ZOA:-false}"                    # Set to "true" to skip
+E2E_SKIP_HCP="${E2E_SKIP_HCP:-true}"                     # Set to "true" to skip
+E2E_SKIP_ROSA_CLI="${E2E_SKIP_ROSA_CLI:-false}"          # Set to "true" to skip
+E2E_SKIP_MONITORING="${E2E_SKIP_MONITORING:-false}"      # Set to "true" to skip
+
 # OCP release payload (full pullspec) for HCP creation. Empty lets the e2e /
 # operator pick their default; CI sets this to pair the cluster's OCP version
 # with the CPO/HO build under test. Consumed by the api repo's test-e2e-cli.
@@ -339,6 +341,7 @@ if [[ "$_have_customer_creds" == "true" ]]; then
     echo ""
     export ROSA_REPO_URL ROSA_REPO_BRANCH TEST_PROFILE="${ROSA_TEST_PROFILE}"
     export GOTOOLCHAIN=auto
+    echo "ROSA_LABEL_FILTER: ${ROSA_LABEL_FILTER}"
     ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER}" make test-e2e-rosa-cli || rosa_cli_rc=$?
   else
     echo ""
