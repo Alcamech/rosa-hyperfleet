@@ -207,22 +207,31 @@ so this needs a real `gh` CLI via an RWS worker:
 
 1. `rws_pod_create` a small, short-lived workspace pod (1 CPU / 2Gi memory, ~15
    minute TTL — this only runs one CLI command).
-2. `rws_new_agent` on that pod: list every repository in `openshift-online`
-   whose name matches `rosa-hyperfleet*`, including the url and archived status.
-3. `rws_query` the worker to run `gh search repos "rosa-hyperfleet" --owner
-openshift-online --limit 1000 --json name,fullName,url,isArchived`.
-4. Cross-check the results from the previous step with `gh repo list
-openshift-online --limit 1000 --json name,url,isArchived --jq '.[] |
-select(.name | test("^rosa-hyperfleet"))'`. Resolve discrepancies between the
-   repo lists from the previous step and this step by creating a union of the
-   two lists, to avoid skipping repos during this instance of the scheduled
-   report.
-5. `rws_pod_destroy` this discovery pod once you have the result — it's not
+2. `rws_new_agent` on that pod: list every non-archived repository in
+   `openshift-online` whose name starts with `rosa-hyperfleet`, including the
+   url.
+3. `rws_query` the worker to run:
+   ```
+   gh repo list openshift-online --limit 1000 --no-archived --json name,nameWithOwner,url \
+     --jq '.[] | select(.name | ascii_downcase | startswith("rosa-hyperfleet"))'
+   ```
+4. `rws_pod_destroy` this discovery pod once you have the result — it's not
    needed for the scans themselves.
-6. Drop archived repos, and note which are ignored due to archive. The remaining
-   list is the `N` number of repos to scan this run — keep track of N so later
-   turns can check completion against the correct count.
-7. If this phase fails for any reason, then continue with the list of KEY REPOS
+5. **Verification gate:** Before proceeding to Phase 2, print the complete
+   discovered repo list with exact `nameWithOwner` values. This list — and only
+   this list — is the scan manifest for this run. Do not proceed until you have
+   printed it. Do not supplement, reduce, or substitute this list with repos
+   from memory, prior runs, verified knowledge lessons, or any other source. If
+   the list is empty, go to the fallback step.
+6. **Sanity check:** The discovered list must contain at least as many repos as
+   the KEY REPOS list (currently 3). If it contains fewer, treat this as a
+   Phase 1 failure and fall back to KEY REPOS. If it contains exactly the KEY
+   REPOS count, log a warning — the discovery command may have silently failed
+   to enumerate non-key repos.
+7. The result is the `N` number of repos to scan this run — keep track of N so
+   later turns can check completion against the correct count. Archived repos
+   are already excluded by `--no-archived`.
+8. If this phase fails for any reason, then continue with the list of KEY REPOS
    specified in "Definitions".
 
 ### Phase 2 — Dispatch a parallel scan per repo, batched at 10 concurrent workers
@@ -444,6 +453,14 @@ separate posts per repo.
 - Do not infer a repo's identity from anything other than what the procedure
   "Phase 1" actually discovered or explicitly specified, since the point of
   "Phase 1" is to catch repos added or removed since the last run.
+- **Prohibited repo sources:** The following are not valid repo sources for this
+  scan and must never be used in place of or to supplement Phase 1 discovery:
+  repo lists from prior scan runs or conversation history; verified knowledge or
+  self-learning lessons listing specific repos; hardcoded lists in the
+  coordinator's memory or training data; any list not produced by the `gh repo
+list` command in this run's Phase 1. The KEY REPOS fallback is the _only_
+  alternative to a successful Phase 1 discovery, and it is an explicit degraded
+  mode — note it prominently in the report summary when used.
 - Do not include CVE/dependency-vulnerability findings — out of scope for the
   Adversary skill; flag only what its static/adversarial analysis covers.
 - Order findings CRITICAL-first within every section, consistent with the
