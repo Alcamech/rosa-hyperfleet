@@ -128,6 +128,19 @@ ZOA_REPO="${ZOA_REPO:-https://github.com/openshift-online/rosa-hyperfleet-zoa.gi
 export OCP_IMAGE="${OCP_IMAGE:-}"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "${WORK_DIR}"' EXIT
+
+# Print a human-readable summary line for one suite.
+# Args: <suite label> <exit code> <skip flag ("true" if skipped)>
+print_suite_result() {
+    local label="$1" rc="$2" skipped="$3"
+    if [[ "$skipped" == "true" ]]; then
+        printf '  %-20s SKIPPED\n' "$label"
+    elif [[ "$rc" -eq 0 ]]; then
+        printf '  %-20s PASS\n' "$label"
+    else
+        printf '  %-20s FAIL (exit %s)\n' "$label" "$rc"
+    fi
+}
 # ---------------------------------------------------------------------------
 # When triggered by a rosa-hyperfleet-zoa PR, only run ZOA's full e2e suite —
 # API, HCP, and monitoring tests are irrelevant for ZOA code changes.
@@ -149,7 +162,14 @@ if [[ "${REPO_NAME:-}" == "rosa-hyperfleet-zoa" ]]; then
     zoa_exit=1
   fi
   echo ""
-  echo "E2E results: zoa=$zoa_exit"
+  echo "=== E2E Test Summary ==="
+  print_suite_result "ZOA" "$zoa_exit" ""
+  echo ""
+  if [[ $zoa_exit -ne 0 ]]; then
+    echo "Result: FAILED"
+  else
+    echo "Result: PASSED"
+  fi
   exit $zoa_exit
 fi
 
@@ -340,7 +360,7 @@ fi
 
 # HCP test failures collect logs via PRE_CLEANUP_HOOK in the test's DeferCleanup
 # (before HCP deletion). Only collect here for non-HCP failures.
-if [[ $platform_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne 0 ]]; then
+if [[ $platform_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne 0 ]] || [[ $zoa_exit -ne 0 ]]; then
     # Logs are left in S3 rather than added to public CI artifacts because
     # they may contain sensitive data that cannot be reliably redacted.
     # The S3 URIs are printed below for manual retrieval.
@@ -351,7 +371,17 @@ if [[ $platform_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne
 fi
 
 echo ""
-echo "E2E results: platform=$platform_rc hcp=$hcp_rc monitoring=$monitoring_rc rosa-cli=$rosa_cli_rc zoa=$zoa_exit"
+echo "=== E2E Test Summary ==="
+print_suite_result "Platform API"       "$platform_rc"  "$([[ "${E2E_SKIP_PLATFORM_API}" == "true" ]] && echo true)"
+print_suite_result "HCP Creation"       "$hcp_rc"       "$([[ "${E2E_SKIP_HCP}" == "true" ]] && echo true)"
+print_suite_result "ROSA CLI"           "$rosa_cli_rc"  "$([[ "${E2E_SKIP_ROSA_CLI}" != "false" ]] && echo true)"
+print_suite_result "Platform Monitoring" "$monitoring_rc" "$([[ "${E2E_SKIP_MONITORING}" == "true" ]] && echo true)"
+print_suite_result "ZOA"                "$zoa_exit"     "$([[ "${E2E_SKIP_ZOA}" == "true" ]] && echo true)"
+
 if [[ $platform_rc -ne 0 ]] || [[ $hcp_rc -ne 0 ]] || [[ $monitoring_rc -ne 0 ]] || [[ $rosa_cli_rc -ne 0 ]] || [[ $zoa_exit -ne 0 ]]; then
+    echo ""
+    echo "Result: FAILED"
     exit 1
 fi
+echo ""
+echo "Result: PASSED"
