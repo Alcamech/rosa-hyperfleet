@@ -90,8 +90,14 @@ variable "redis_endpoint" {
 # (which have no hyperfleet-db), skipping the step.
 # -----------------------------------------------------------------------------
 
+variable "enable_zoa_db_bootstrap" {
+  description = "Whether the bootstrap task provisions the ZOA read-only IAM DB role. Enabled on the RC (which has hyperfleet-db), disabled on MCs. Must be known at plan time because it drives resource count."
+  type        = bool
+  default     = false
+}
+
 variable "hyperfleet_db_dsn_secret_arn" {
-  description = "Secrets Manager ARN of the hyperfleet-db master DSN. When set, the bootstrap task provisions the ZOA read-only IAM DB role."
+  description = "Secrets Manager ARN of the hyperfleet-db master DSN. Used to grant the bootstrap task access and injected as a bootstrap env var when enable_zoa_db_bootstrap is true."
   type        = string
   default     = ""
 }

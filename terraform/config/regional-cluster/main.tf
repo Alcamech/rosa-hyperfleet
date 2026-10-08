@@ -241,6 +241,10 @@ module "ecs_bootstrap" {
   redis_endpoint    = var.enable_rate_limit_redis ? "${module.elasticache_valkey[0].endpoint}:${module.elasticache_valkey[0].port}" : ""
 
   # ZOA read-only IAM DB role provisioning (runs psql during bootstrap).
+  # The RC always has hyperfleet-db, so enable it unconditionally here. This
+  # flag is known at plan time and drives the bootstrap IAM policy's count;
+  # the DSN secret ARN below is unknown until apply on a greenfield build.
+  enable_zoa_db_bootstrap       = true
   hyperfleet_db_dsn_secret_arn  = module.hyperfleet_db.dsn_secret_arn
   hyperfleet_db_kms_key_arn     = module.hyperfleet_db.kms_key_arn
   hyperfleet_db_name            = module.hyperfleet_db.database_name
