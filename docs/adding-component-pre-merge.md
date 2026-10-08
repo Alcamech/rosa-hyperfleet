@@ -92,6 +92,15 @@ ROSA_REGIONAL_HELM_OVERRIDE_YAML: |
 
 The `name: cert-manager` entry is matched against the existing dependencies list, and only the `version` field is updated. No placeholders needed since this isn't an image override.
 
+## OCP release image selection
+
+By default the e2e HCP cluster uses the ephemeral environment's built-in OCP release image, so most component repos can ignore this. To run against a specific OCP stream instead, set `OCP_RELEASE_STREAM`; the [`rosa-hyperfleet-resolve-ocp-image`](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/resolve-ocp-image) step resolves it to a public multi-arch pullspec the ephemeral environment can pull (it is a no-op when unset):
+
+- `ocp-branch-candidate` — newest accepted GA/z-stream/RC for the branch's OCP version. Suited to presubmits, so a failure points at the change under test.
+- `ocp-branch-nightly` — newest accepted multi-arch nightly for the branch's OCP version. Suited to periodics, to catch OCP regressions early.
+
+Both track the branch's own `release-X.Y` version (and fall back to the newest older version with accepted payloads), so `config-brancher` copies stay correct. See the step's `documentation` for the full resolution logic and other accepted values.
+
 ## SOP: Onboarding a New Component Repository
 
 ### Prerequisites
@@ -151,11 +160,19 @@ On any PR in the component repo:
 /test rosa-hyperfleet-compatibility-e2e
 ```
 
-## Multi-Image / Terraform-Deployed Components (ZOA)
+## Examples
+
+Consumers of the `rosa-hyperfleet-ephemeral-e2e` workflow, from simplest to most involved:
+
+- **Single-image Helm component** — one image deep-merged into an ArgoCD values file. The canonical example is [`rosa-hyperfleet-api`](https://github.com/openshift-online/rosa-hyperfleet-api), covered step by step in [the onboarding SOP above](#sop-onboarding-a-new-component-repository).
+- **Multi-image / Terraform component (ZOA)** — multiple images injected into a Terraform defaults file.
+- **HyperShift (pre-merge + nightly)** — two images, plus an OCP payload matrix across presubmit and periodic flows.
+
+### Multi-Image / Terraform-Deployed Components (ZOA)
 
 Components that deploy through **Terraform** (not ArgoCD Helm) and/or have **multiple images** require a modified approach. ZOA is the canonical example:
 
-### Key Differences
+#### Key Differences
 
 | Aspect          | Standard (API)                         | Terraform (ZOA)                                   |
 | --------------- | -------------------------------------- | ------------------------------------------------- |
@@ -164,7 +181,7 @@ Components that deploy through **Terraform** (not ArgoCD Helm) and/or have **mul
 | Image push step | `rosa-hyperfleet-image-push` (shared)  | Same step — uses `ROSA_REGIONAL_EXTRA_COMPONENTS` |
 | Placeholders    | `IMAGE_REPO`, `IMAGE_TAG`              | `IMAGE_REPO`, `IMAGE_TAG` (per-image, same tag)   |
 
-### `ROSA_REGIONAL_EXTRA_COMPONENTS` for ZOA
+#### `ROSA_REGIONAL_EXTRA_COMPONENTS` for ZOA
 
 ZOA uses the same `ROSA_REGIONAL_EXTRA_COMPONENTS` mechanism as the API repo but targets
 `config/defaults.yaml` (Terraform) instead of ArgoCD Helm values files:
@@ -192,11 +209,11 @@ sequentially via deep-merge. The ephemeral provider then runs `render.py`, which
 `deploy/.../terraform.json` with the CI-built image tags. Terraform picks them up during
 provisioning.
 
-### Reference
+#### Reference
 
 - **CI config**: [`openshift/release` — `ci-operator/config/openshift-online/rosa-hyperfleet-zoa/`](https://github.com/openshift/release/blob/master/ci-operator/config/openshift-online/rosa-hyperfleet-zoa/openshift-online-rosa-hyperfleet-zoa-main.yaml)
 
-## HyperShift Pre-Merge & Nightly E2E
+### HyperShift Pre-Merge & Nightly E2E
 
 The [`openshift/hypershift`](https://github.com/openshift/hypershift) repo runs the same
 `rosa-hyperfleet-ephemeral-e2e` workflow to validate HyperShift changes against a full
@@ -207,9 +224,9 @@ ephemeral environment. Two images from HyperShift are involved, deployed indepen
 | `hypershift-operator` | HyperShift operator (HO) on the Management Cluster | `argocd/config/management-cluster/hypershift/values.yaml` |
 | `hypershift`          | Control-plane-operator (CPO) on hosted clusters    | `argocd/config/regional-cluster/hyperfleet/values.yaml`   |
 
-### Test matrix
+#### Test matrix
 
-The two flows differ in which images they override and which OCP payload they run against:
+The two flows differ in which images they override and which OCP payload they run against (see [OCP release image selection](#ocp-release-image-selection) for the stream values):
 
 | Flow                      | Trigger                                          | HO (operator)                          | CPO (`hypershift`)                | OCP payload            |
 | ------------------------- | ------------------------------------------------ | -------------------------------------- | --------------------------------- | ---------------------- |
@@ -223,21 +240,7 @@ The two flows differ in which images they override and which OCP payload they ru
   operator image) and lets CPO come from the OCP payload, catching regressions against fresh
   nightly payloads without a PR. Defined in the `__periodics.yaml` variant per release branch.
 
-### OCP release image selection
-
-The e2e HCP cluster's OCP version is chosen by the
-[`rosa-hyperfleet-resolve-ocp-image`](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/resolve-ocp-image)
-step via the `OCP_RELEASE_STREAM` env var (resolved to a public multi-arch pullspec the
-ephemeral environment can pull):
-
-- `ocp-branch-candidate` — newest accepted GA/z-stream/RC for the branch's OCP version. Used
-  by presubmits so a failure points at the change under test.
-- `ocp-branch-nightly` — newest accepted multi-arch nightly for the branch's OCP version.
-  Used by periodics to catch OCP regressions early.
-
-Both track the branch's own `release-X.Y` version (and fall back to the newest older version
-with accepted payloads), so `config-brancher` copies stay correct. See the step's
-`documentation` for the full resolution logic.
+#### Reference
 
 - **CI config**: [`openshift/release` — `ci-operator/config/openshift/hypershift/`](https://github.com/openshift/release/tree/master/ci-operator/config/openshift/hypershift)
   (`openshift-hypershift-main.yaml` + `openshift-hypershift-release-*__periodics.yaml`)
