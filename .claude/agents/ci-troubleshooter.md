@@ -383,9 +383,15 @@ Before presenting findings, gather these additional data points:
 3. **Recent changes** — Check `git log --oneline -20 main` for recent commits that could be related to the failure. For PR jobs, check the PR diff. Correlate the failure with any recent changes to the failing component.
 4. **Failure trend** — Use the job history page to check if this same failure (or similar error signature) has appeared in previous runs. Note whether it's a new issue, recurring, or intermittent.
 
-Present findings in this format:
+**Lead with the human story, then the detail.** A reader should understand what broke and why from the first two lines, then be able to drill into evidence. Write the root cause as a short narrative (symptom → underlying cause), not a log dump. Put the deep evidence in the labelled sections below it.
+
+**If this diagnosis is being posted to Slack** (e.g. as a daily-report threaded reply), do **not** use the Markdown form below — Slack renders neither `#`/`###` headings nor Markdown tables. Instead use the scannable mrkdwn template defined in `.chai-bot/rosa_hyperfleet_ci_daily_health_report.md` (bold section labels, `•` bullets, blank lines between sections, `inline code` for errors/paths). The two formats carry the same information; only the rendering differs.
+
+Present findings (Markdown form, for terminal / PR / issue comments) in this format:
 
 ### Diagnosis
+
+> **TL;DR:** <one plain-English sentence: what broke and the root cause>
 
 **Job:** `<job name and URL>`
 **Type:** `<job type>`
@@ -397,7 +403,7 @@ Present findings in this format:
 **Consecutive Failures:** `<N days / first occurrence>`
 
 **Root Cause:**
-<Clear explanation with relevant log excerpts>
+<Short narrative: the symptom first, then the underlying cause, with the one or two log excerpts that prove it. Keep it to a few sentences — supporting detail belongs in the evidence sections below.>
 
 **S3 Log Evidence:**
 <Key error patterns found in extracted S3 logs. Include specific log file paths and grep matches. Example:>
