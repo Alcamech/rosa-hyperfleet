@@ -7,19 +7,21 @@ Component repositories (e.g., `rosa-hyperfleet-api`) can run the rosa-hyperfleet
 A reusable [step-registry workflow](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/ephemeral-e2e) in `openshift/release` handles everything:
 
 1. **Image build** — ci-operator builds the component's Docker image from the PR source
-2. **Image push** — The image is copied to `quay.io/rrp-dev-ci/` using `oc image mirror` from the OCP `cli` image (public, so EKS can pull it without credentials), tagged `ci-<PR>-<BUILD_ID>`
-3. **Provision** — Ephemeral environment provisioned from `rosa-hyperfleet` main, with the component's Helm values deep-merged with an inline YAML override
-4. **E2E tests** — The RRP testing suite (`./ci/e2e-tests.sh`) from rosa-hyperfleet runs against the environment
-5. **Teardown** — Ephemeral environment torn down (fire-and-forget)
+2. **Resolve OCP image** — Optionally resolves `OCP_RELEASE_STREAM` to the latest accepted OCP payload for the e2e HCP cluster (skipped when unset; see [OCP release image selection](#ocp-release-image-selection))
+3. **Image push** — The image is copied to `quay.io/rrp-dev-ci/` using `oc image mirror` from the OCP `cli` image (public, so EKS can pull it without credentials), tagged `ci-<PR>-<BUILD_ID>`
+4. **Provision** — Ephemeral environment provisioned from `rosa-hyperfleet` main, with the component's Helm values deep-merged with an inline YAML override
+5. **E2E tests** — The RRP testing suite (`./ci/e2e-tests.sh`) from rosa-hyperfleet runs against the environment
+6. **Teardown** — Ephemeral environment torn down (fire-and-forget)
 
 ## Workflow Steps
 
-| Step                         | Image                | Purpose                                                              |
-| ---------------------------- | -------------------- | -------------------------------------------------------------------- |
-| `rosa-hyperfleet-image-push` | `ocp/4.21:cli`       | Copies CI-built image to quay.io using `oc image mirror`             |
-| `rosa-hyperfleet-provision`  | `rosa-hyperfleet-ci` | Calls ephemeral provider with YAML overrides, provisions environment |
-| `rosa-hyperfleet-e2e`        | `rosa-hyperfleet-ci` | Clones this repo, runs `./ci/e2e-tests.sh`                           |
-| `rosa-hyperfleet-teardown`   | `rosa-hyperfleet-ci` | Clones this repo, runs teardown                                      |
+| Step                                | Image                | Purpose                                                                     |
+| ----------------------------------- | -------------------- | --------------------------------------------------------------------------- |
+| `rosa-hyperfleet-resolve-ocp-image` | `rosa-hyperfleet-ci` | Resolves `OCP_RELEASE_STREAM` to an OCP release pullspec (no-op when unset) |
+| `rosa-hyperfleet-image-push`        | `ocp/4.21:cli`       | Copies CI-built image to quay.io using `oc image mirror`                    |
+| `rosa-hyperfleet-provision`         | `rosa-hyperfleet-ci` | Calls ephemeral provider with YAML overrides, provisions environment        |
+| `rosa-hyperfleet-e2e`               | `rosa-hyperfleet-ci` | Clones this repo, runs `./ci/e2e-tests.sh`                                  |
+| `rosa-hyperfleet-teardown`          | `rosa-hyperfleet-ci` | Clones this repo, runs teardown                                             |
 
 The `rosa-hyperfleet-ci` image is built from `ci/Containerfile` and promoted to the CI registry on every merge to `main` of `openshift-online/rosa-hyperfleet`.
 
@@ -193,3 +195,49 @@ provisioning.
 ### Reference
 
 - **CI config**: [`openshift/release` — `ci-operator/config/openshift-online/rosa-hyperfleet-zoa/`](https://github.com/openshift/release/blob/master/ci-operator/config/openshift-online/rosa-hyperfleet-zoa/openshift-online-rosa-hyperfleet-zoa-main.yaml)
+
+## HyperShift Pre-Merge & Nightly E2E
+
+The [`openshift/hypershift`](https://github.com/openshift/hypershift) repo runs the same
+`rosa-hyperfleet-ephemeral-e2e` workflow to validate HyperShift changes against a full
+ephemeral environment. Two images from HyperShift are involved, deployed independently:
+
+| Image                 | Deployed as                                        | Override target                                           |
+| --------------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| `hypershift-operator` | HyperShift operator (HO) on the Management Cluster | `argocd/config/management-cluster/hypershift/values.yaml` |
+| `hypershift`          | Control-plane-operator (CPO) on hosted clusters    | `argocd/config/regional-cluster/hyperfleet/values.yaml`   |
+
+### Test matrix
+
+The two flows differ in which images they override and which OCP payload they run against:
+
+| Flow                      | Trigger                                          | HO (operator)                          | CPO (`hypershift`)                | OCP payload            |
+| ------------------------- | ------------------------------------------------ | -------------------------------------- | --------------------------------- | ---------------------- |
+| **Pre-merge** (presubmit) | `/test e2e-rosa-hyperfleet` on a PR (`optional`) | PR build                               | PR build                          | `ocp-branch-candidate` |
+| **Nightly** (periodic)    | daily at 08:00 UTC, per `release-X.Y` branch     | published `hypershift-operator:latest` | from OCP payload (not overridden) | `ocp-branch-nightly`   |
+
+- **Pre-merge** overrides **both** HO and CPO from the one PR build (via
+  `ROSA_REGIONAL_EXTRA_COMPONENTS`), so a developer validates their exact change end-to-end
+  before merge.
+- **Nightly** overrides **only HO** (`ROSA_REGIONAL_HELM_OVERRIDE_YAML` → the published
+  operator image) and lets CPO come from the OCP payload, catching regressions against fresh
+  nightly payloads without a PR. Defined in the `__periodics.yaml` variant per release branch.
+
+### OCP release image selection
+
+The e2e HCP cluster's OCP version is chosen by the
+[`rosa-hyperfleet-resolve-ocp-image`](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/resolve-ocp-image)
+step via the `OCP_RELEASE_STREAM` env var (resolved to a public multi-arch pullspec the
+ephemeral environment can pull):
+
+- `ocp-branch-candidate` — newest accepted GA/z-stream/RC for the branch's OCP version. Used
+  by presubmits so a failure points at the change under test.
+- `ocp-branch-nightly` — newest accepted multi-arch nightly for the branch's OCP version.
+  Used by periodics to catch OCP regressions early.
+
+Both track the branch's own `release-X.Y` version (and fall back to the newest older version
+with accepted payloads), so `config-brancher` copies stay correct. See the step's
+`documentation` for the full resolution logic.
+
+- **CI config**: [`openshift/release` — `ci-operator/config/openshift/hypershift/`](https://github.com/openshift/release/tree/master/ci-operator/config/openshift/hypershift)
+  (`openshift-hypershift-main.yaml` + `openshift-hypershift-release-*__periodics.yaml`)
