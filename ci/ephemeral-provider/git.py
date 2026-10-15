@@ -261,9 +261,16 @@ class GitManager:
         if not self.eph_branch:
             log.warning("No ephemeral branch recorded; skipping branch deletion")
             return
-        result = self._run_git(
-            "push", "ci", "--delete", self.eph_branch, auth=True, check=False
-        )
+        try:
+            result = self._run_git(
+                "push", "ci", "--delete", self.eph_branch, auth=True, check=False
+            )
+        except (subprocess.TimeoutExpired, OSError) as e:
+            log.warning(
+                "Failed to delete ephemeral branch '%s' (%s); prune it manually",
+                self.eph_branch, e,
+            )
+            return
         if result.returncode != 0:
             log.warning(
                 "Failed to delete ephemeral branch '%s' (exit %s); prune it manually",
