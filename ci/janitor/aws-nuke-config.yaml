@@ -74,6 +74,19 @@ presets:
         - type: glob
           value: "*"
 
+      # Exclude AWS Security Incident Response (SIR) event rules and targets.
+      # These are service-managed and cannot be deleted, so aws-nuke leaves them
+      # in a "waiting" state indefinitely. Skipping them keeps a cleanup pass from
+      # getting stuck on resources it can never remove.
+      CloudWatchEventsRule:
+        - property: Name
+          type: glob
+          value: "SIR*"
+      CloudWatchEventsTarget:
+        - property: Name
+          type: glob
+          value: "SIR*"
+
       # Exclude OrgAdminAccessRole and ResourceExplorer roles
       IAMRole:
         - "OrganizationAccountAccessRole"
