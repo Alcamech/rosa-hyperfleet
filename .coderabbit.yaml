@@ -23,7 +23,7 @@ reviews:
     - path: "argocd/config/regional-cluster/**"
       instructions: |
         Review Helm values for regional cluster services (platform-api,
-        hyperfleet-operator, kube-applier, thanos, grafana, monitoring). Ensure values
+        seaplane-operator, kube-applier, thanos, grafana, monitoring). Ensure values
         follow existing patterns and are properly scoped to the regional cluster context.
     - path: "argocd/config/management-cluster/**"
       instructions: |

@@ -37,16 +37,16 @@ module "kube_applier_dynamodb" {
 }
 
 # =============================================================================
-# Hyperfleet-Operator DynamoDB Access (per-MC scoped policy)
+# Seaplane-Operator DynamoDB Access (per-MC scoped policy)
 #
-# Grants the hyperfleet-operator role access to this MC's DynamoDB tables.
+# Grants the seaplane-operator role access to this MC's DynamoDB tables.
 # Each MC pipeline attaches its own policy, replacing the previous monolithic
 # policy that enumerated all MCs from the RC config.
 # =============================================================================
 
-resource "aws_iam_role_policy" "hyperfleet_operator_dynamodb" {
+resource "aws_iam_role_policy" "seaplane_operator_dynamodb" {
   name = "${var.mc_name}-dynamodb-access"
-  role = "${var.rc_id}-hyperfleet-operator"
+  role = "${var.rc_id}-seaplane-operator"
 
   policy = jsonencode({
     Version = "2012-10-17"

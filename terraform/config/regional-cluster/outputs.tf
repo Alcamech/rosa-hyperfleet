@@ -45,9 +45,9 @@ output "cluster_security_group_id" {
   value       = module.vpc.cluster_security_group_id
 }
 
-output "hyperfleet_db_security_group_id" {
-  description = "HyperFleet DB RDS security group ID"
-  value       = module.hyperfleet_db.security_group_id
+output "seaplane_db_security_group_id" {
+  description = "Seaplane DB RDS security group ID"
+  value       = module.seaplane_db.security_group_id
 }
 
 output "node_security_group_id" {
@@ -265,36 +265,36 @@ output "authz_configuration_summary" {
 }
 
 # =============================================================================
-# Hyperfleet Operator Outputs
+# Seaplane Operator Outputs
 # =============================================================================
 
-output "hyperfleet_operator_role_arn" {
-  description = "IAM role ARN for hyperfleet-operator (Pod Identity)"
-  value       = aws_iam_role.hyperfleet_operator.arn
+output "seaplane_operator_role_arn" {
+  description = "IAM role ARN for seaplane-operator (Pod Identity)"
+  value       = aws_iam_role.seaplane_operator.arn
 }
 
-output "hyperfleet_db_endpoint" {
-  description = "HyperFleet DB RDS endpoint (host:port)"
-  value       = module.hyperfleet_db.endpoint
+output "seaplane_db_endpoint" {
+  description = "Seaplane DB RDS endpoint (host:port)"
+  value       = module.seaplane_db.endpoint
 }
 
-output "hyperfleet_db_dsn_secret_arn" {
+output "seaplane_db_dsn_secret_arn" {
   description = "ARN of the Secrets Manager secret containing the PostgreSQL DSN"
-  value       = module.hyperfleet_db.dsn_secret_arn
+  value       = module.seaplane_db.dsn_secret_arn
 }
 
-output "hyperfleet_db_dsn_secret_name" {
+output "seaplane_db_dsn_secret_name" {
   description = "Name of the Secrets Manager secret containing the PostgreSQL DSN"
-  value       = module.hyperfleet_db.dsn_secret_name
+  value       = module.seaplane_db.dsn_secret_name
 }
 
 # ElastiCache Valkey
-output "hyperfleet_redis_endpoint" {
+output "seaplane_redis_endpoint" {
   description = "ElastiCache Valkey endpoint for rate limiting (null if disabled)"
   value       = var.enable_rate_limit_redis ? module.elasticache_valkey[0].endpoint : null
 }
 
-output "hyperfleet_redis_port" {
+output "seaplane_redis_port" {
   description = "ElastiCache Valkey port (null if disabled)"
   value       = var.enable_rate_limit_redis ? module.elasticache_valkey[0].port : null
 }

@@ -34,7 +34,7 @@ resource "aws_iam_role" "kube_applier" {
   )
 }
 
-# Policy: Read specs tables + GSI query (for the hyperfleet-dynamo two-speed polling watcher)
+# Policy: Read specs tables + GSI query (for the seaplane-dynamo two-speed polling watcher)
 resource "aws_iam_role_policy" "kube_applier_specs" {
   name = "${var.management_id}-kube-applier-specs"
   role = aws_iam_role.kube_applier.id

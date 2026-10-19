@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Ephemeral environment CLI for ROSA HyperFleet.
+# Ephemeral environment CLI for ROSA Seaplane.
 #
 # Manages ephemeral developer environments in shared dev AWS accounts.
 # Wraps the ephemeral provider (ci/ephemeral-provider/) with credential
@@ -45,7 +45,7 @@ usage() {
     echo "  port-forward    Forward ports through RC/MC bastion in an ephemeral env"
     echo "  sre-ui          Tunnel SRE UI tools through the internal ALB via bastion"
     echo "  e2e             Run e2e tests against an ephemeral env"
-    echo "  zoa-e2e         Run rosa-hyperfleet-zoa's deep e2e suite against an ephemeral env"
+    echo "  zoa-e2e         Run rosa-seaplane-zoa's deep e2e suite against an ephemeral env"
     echo "  dump-env        Dump EKS must-gather and DB state from RC/MC in an ephemeral env"
 }
 
@@ -218,10 +218,10 @@ setup_aws_config() {
         return 0
     fi
 
-    local accounts_file="${RRP_ACCOUNTS_DEV:-${REPO_ROOT}/../rosa-hyperfleet-internal/infra/accounts/dev/accounts.json}"
+    local accounts_file="${RRP_ACCOUNTS_DEV:-${REPO_ROOT}/../rosa-seaplane-internal/infra/accounts/dev/accounts.json}"
     [[ -f "$accounts_file" ]] \
         || die "Account IDs file not found: $accounts_file
-    Either clone rosa-hyperfleet-internal as a sibling directory,
+    Either clone rosa-seaplane-internal as a sibling directory,
     or set RRP_ACCOUNTS_DEV to point to your accounts JSON file.
     See docs/development-environment.md for details."
     load_accounts "$accounts_file" admin central rc mc customer
@@ -355,7 +355,7 @@ preflight() {
 # =============================================================================
 
 cmd_provision() {
-    local repo="${REPO:-openshift-online/rosa-hyperfleet}"
+    local repo="${REPO:-openshift-online/rosa-seaplane}"
     local branch="${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 
     # Generate an ID if not provided
@@ -711,7 +711,7 @@ cmd_shell() {
         "$CI_IMAGE" \
         bash -c '
             echo ""
-            echo "ROSA HyperFleet shell"
+            echo "ROSA Seaplane shell"
             echo ""
             echo "API Gateway: $API_URL"
             [[ -z "${ZOA_RC_API_URL:-}" ]] || echo "ZOA API (RC): $ZOA_RC_API_URL"
@@ -1105,7 +1105,7 @@ cmd_bastion_port_forward() {
 
 cmd_e2e() {
     local e2e_ref="${E2E_REF:-main}"
-    local e2e_repo="${E2E_REPO:-https://github.com/openshift-online/rosa-hyperfleet-api.git}"
+    local e2e_repo="${E2E_REPO:-https://github.com/openshift-online/rosa-seaplane-api.git}"
 
     # Select environment (ready only)
     select_env "STATE=ready" \
@@ -1174,14 +1174,14 @@ cmd_e2e() {
         bash ci/e2e-tests.sh
 }
 
-# Runs rosa-hyperfleet-zoa e2e tests against an already-provisioned ephemeral
+# Runs rosa-seaplane-zoa e2e tests against an already-provisioned ephemeral
 # env's ZOA Lambda URLs. Clones ZOA_REPO@ZOA_REF inside the container and runs
 # `make $ZOA_MAKE_TARGET` (default: test-e2e; set to test-e2e-smoke for smoke).
-# Same clone-by-ref pattern cmd_e2e uses for rosa-hyperfleet-api. To test a
+# Same clone-by-ref pattern cmd_e2e uses for rosa-seaplane-api. To test a
 # branch/fork, push it and set ZOA_REF/ZOA_REPO.
 cmd_zoa_e2e() {
     local zoa_ref="${ZOA_REF:-main}"
-    local zoa_repo="${ZOA_REPO:-https://github.com/openshift-online/rosa-hyperfleet-zoa.git}"
+    local zoa_repo="${ZOA_REPO:-https://github.com/openshift-online/rosa-seaplane-zoa.git}"
 
     select_env "STATE=ready" \
         "Select environment for ZOA e2e tests:" \

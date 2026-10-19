@@ -1,5 +1,5 @@
 # =============================================================================
-# HyperFleet DB Module Variables
+# Seaplane DB Module Variables
 # =============================================================================
 
 variable "tags" {
@@ -43,7 +43,7 @@ variable "engine_version" {
 variable "database_name" {
   description = "Name of the database to create"
   type        = string
-  default     = "hyperfleet"
+  default     = "seaplane"
 }
 
 variable "backup_retention_period" {

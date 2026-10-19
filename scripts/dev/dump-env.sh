@@ -29,8 +29,8 @@
 #   LEAKTK_GATE     — Defaults to "true": abort with non-zero exit when leaktk
 #                     detects secrets remaining after redaction. Set to "false"
 #                     to log findings as warnings without blocking.
-#   DB_NAMESPACE        — Kubernetes namespace for the DB DSN secret (default: hyperfleet)
-#   DB_SECRET_NAME      — Name of the secret containing the DSN (default: hyperfleet-db-dsn)
+#   DB_NAMESPACE        — Kubernetes namespace for the DB DSN secret (default: seaplane)
+#   DB_SECRET_NAME      — Name of the secret containing the DSN (default: seaplane-db-dsn)
 #   DYNAMO_TABLE_PREFIX — Prefix for discovering kube-applier DynamoDB tables
 #                         (default: CLUSTER_PREFIX). Tables follow the naming
 #                         convention {mc_name}-{specs|status}-{applydesires|readdesires}.
@@ -44,8 +44,8 @@ export AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-$(aws configure get regio
 
 RC_NAMESPACES="all"
 MC_NAMESPACES="all"
-DB_NAMESPACE="${DB_NAMESPACE:-hyperfleet}"
-DB_SECRET_NAME="${DB_SECRET_NAME:-hyperfleet-db-dsn}"
+DB_NAMESPACE="${DB_NAMESPACE:-seaplane}"
+DB_SECRET_NAME="${DB_SECRET_NAME:-seaplane-db-dsn}"
 DYNAMO_TABLE_PREFIX="${DYNAMO_TABLE_PREFIX:-${CLUSTER_PREFIX:-}}"
 
 # ---------------------------------------------------------------------------

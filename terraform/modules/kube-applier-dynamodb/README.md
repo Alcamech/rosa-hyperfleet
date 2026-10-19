@@ -20,7 +20,7 @@ partition key. Deletion is expressed as an `ApplyDesire` with `spec.type=Delete`
 — there are no separate `deletedesires` tables.
 
 The `updateTime-index` GSI (hash key: `shard`, range key: `updateTime`) is
-present on all four tables and is used by the `hyperfleet-dynamo` two-speed
+present on all four tables and is used by the `seaplane-dynamo` two-speed
 polling watcher. DynamoDB Streams are not enabled.
 
 ## Cross-Account IAM Policies

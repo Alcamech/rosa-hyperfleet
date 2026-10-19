@@ -211,7 +211,7 @@ pre-push: ## Run all CI validation checks (parallel)
 # Thin wrappers around scripts/dev/ephemeral-env.sh.
 # See docs/development-environment.md for full usage guide.
 
-REPO   ?= openshift-online/rosa-hyperfleet
+REPO   ?= openshift-online/rosa-seaplane
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 
 ephemeral-provision: ## Provision an ephemeral environment
@@ -274,7 +274,7 @@ ephemeral-dump-env: ## Dump EKS must-gather and DB state from an ephemeral env (
 # Integration Environment
 # =============================================================================
 # Thin wrappers around scripts/dev/int-env.sh.
-# Uses AWS profiles with SAML auth (account IDs from rosa-hyperfleet-internal or RRP_ACCOUNTS_INT).
+# Uses AWS profiles with SAML auth (account IDs from rosa-seaplane-internal or RRP_ACCOUNTS_INT).
 
 int-shell: ## Interactive shell for Platform API access (int)
 	@./scripts/dev/int-env.sh shell
@@ -307,7 +307,7 @@ int-dump-env: ## Dump EKS must-gather and DB state from int env (CLUSTER=rc|mc)
 # Stage Environment
 # =============================================================================
 # Thin wrappers around scripts/dev/stage-env.sh.
-# Uses AWS profiles with SAML auth (account IDs from rosa-hyperfleet-internal or RRP_ACCOUNTS_STAGE).
+# Uses AWS profiles with SAML auth (account IDs from rosa-seaplane-internal or RRP_ACCOUNTS_STAGE).
 
 stage-shell: ## Interactive shell for Platform API access (stage)
 	@./scripts/dev/stage-env.sh shell

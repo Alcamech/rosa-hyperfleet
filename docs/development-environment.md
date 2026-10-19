@@ -1,6 +1,6 @@
 # Provisioning a Development Environment
 
-Ephemeral environments are short-lived, isolated stacks for developing and testing the ROSA HyperFleet. All commands run inside a container on your local machine (podman or docker) and interact with shared development AWS credentials (central, regional, management accounts).
+Ephemeral environments are short-lived, isolated stacks for developing and testing the ROSA Seaplane. All commands run inside a container on your local machine (podman or docker) and interact with shared development AWS credentials (central, regional, management accounts).
 
 Each environment gets a unique ID that prefixes all provisioned resources, keeping environments isolated from each other. The ephemeral provider creates a managed clone of your remote branch and uses it to drive provisioning and ArgoCD syncs. To push subsequent changes into a running environment, use [Resync](#resync).
 
@@ -20,10 +20,10 @@ Port forwarding additionally requires `aws` and `lsof`.
 
 ### AWS Account Setup
 
-By default, scripts look for account ID files in the `rosa-hyperfleet-internal` sibling repo:
+By default, scripts look for account ID files in the `rosa-seaplane-internal` sibling repo:
 
-- **Ephemeral (dev)**: `../rosa-hyperfleet-internal/infra/accounts/dev/accounts.json`
-- **Integration**: `../rosa-hyperfleet-internal/infra/accounts/int/accounts.json`
+- **Ephemeral (dev)**: `../rosa-seaplane-internal/infra/accounts/dev/accounts.json`
+- **Integration**: `../rosa-seaplane-internal/infra/accounts/int/accounts.json`
 
 If you have the internal repo checked out alongside this one, no extra setup is needed.
 
@@ -156,7 +156,7 @@ Ephemeral environments:
 
 ID           REPO                                          BRANCH                    REGION       STATE                  CREATED              API_URL                                                      RHOBS_API_URL
 ------------ --------------------------------------------- ------------------------- ------------ ---------------------- -------------------- ------------------------------------------------------------ ------------------------------------------------------------
-6bd2d3d7     typeid/rosa-hyperfleet                 ROSAENG-143               us-east-1    ready                  2026-03-19T10:14:23Z https://thfvcunmr3.execute-api.us-east-1.amazonaws.com/prod  https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod
+6bd2d3d7     typeid/rosa-seaplane                 ROSAENG-143               us-east-1    ready                  2026-03-19T10:14:23Z https://thfvcunmr3.execute-api.us-east-1.amazonaws.com/prod  https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod
 
 To clear list: rm .ephemeral-envs
 ```
@@ -179,7 +179,7 @@ Example:
 Resolving base credentials...
 Fetching GitHub token from Secrets Manager...
 
-ROSA HyperFleet shell
+ROSA Seaplane shell
 
 API Gateway: https://thfvcunmr3.execute-api.us-east-1.amazonaws.com/prod
 Region:      us-east-1
@@ -281,14 +281,14 @@ make ephemeral-e2e
 make ephemeral-e2e ID=6bd2d3d7
 ```
 
-By default, tests are cloned from the `main` branch of `rosa-hyperfleet-api`. Use `E2E_REF` and `E2E_REPO` to run against a different branch or fork:
+By default, tests are cloned from the `main` branch of `rosa-seaplane-api`. Use `E2E_REF` and `E2E_REPO` to run against a different branch or fork:
 
 ```bash
 # Run tests from a feature branch
 make ephemeral-e2e ID=6bd2d3d7 E2E_REF=my-feature-branch
 
 # Run tests from a fork
-make ephemeral-e2e ID=6bd2d3d7 E2E_REPO=https://github.com/my-fork/rosa-hyperfleet-api.git E2E_REF=my-feature-branch
+make ephemeral-e2e ID=6bd2d3d7 E2E_REPO=https://github.com/my-fork/rosa-seaplane-api.git E2E_REF=my-feature-branch
 ```
 
 To keep the cluster and infrastructure alive after a test run (useful for debugging failures), set `E2E_SKIP_CLEANUP`:
@@ -301,19 +301,19 @@ This skips both the cleanup-labeled ginkgo specs and the `DeferCleanup` safety n
 
 ### ZOA testing
 
-ZOA e2e tests live in [`rosa-hyperfleet-zoa`](https://github.com/openshift-online/rosa-hyperfleet-zoa); this repo clones and runs them — it does not duplicate test logic.
+ZOA e2e tests live in [`rosa-seaplane-zoa`](https://github.com/openshift-online/rosa-seaplane-zoa); this repo clones and runs them — it does not duplicate test logic.
 
-- **`make ephemeral-e2e`** — runs platform e2e plus ZOA **smoke** (`ci/e2e-tests.sh` clones `rosa-hyperfleet-zoa@main` and runs `test-e2e-smoke` when RC/MC Lambda URLs are available).
+- **`make ephemeral-e2e`** — runs platform e2e plus ZOA **smoke** (`ci/e2e-tests.sh` clones `rosa-seaplane-zoa@main` and runs `test-e2e-smoke` when RC/MC Lambda URLs are available).
 - **`make ephemeral-zoa-e2e`** / **`make ephemeral-zoa-e2e-smoke`** — ZOA **full** or **smoke** only; same clone-by-ref pattern as API e2e (`ZOA_REF` / `ZOA_REPO`).
 
 ```bash
 make ephemeral-zoa-e2e ID=6bd2d3d7
-make ephemeral-zoa-e2e ID=6bd2d3d7 ZOA_REF=my-branch ZOA_REPO=https://github.com/my-fork/rosa-hyperfleet-zoa.git
+make ephemeral-zoa-e2e ID=6bd2d3d7 ZOA_REF=my-branch ZOA_REPO=https://github.com/my-fork/rosa-seaplane-zoa.git
 make ephemeral-zoa-e2e-smoke ID=6bd2d3d7
-make ephemeral-zoa-e2e-smoke ID=6bd2d3d7 ZOA_REF=my-branch ZOA_REPO=https://github.com/my-fork/rosa-hyperfleet-zoa.git
+make ephemeral-zoa-e2e-smoke ID=6bd2d3d7 ZOA_REF=my-branch ZOA_REPO=https://github.com/my-fork/rosa-seaplane-zoa.git
 ```
 
-These targets exercise the Lambdas already deployed in the environment; they do not rebuild or redeploy ZOA images. Test suite details: [`rosa-hyperfleet-zoa/docs/e2e-testing.md`](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/e2e-testing.md).
+These targets exercise the Lambdas already deployed in the environment; they do not rebuild or redeploy ZOA images. Test suite details: [`rosa-seaplane-zoa/docs/e2e-testing.md`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/e2e-testing.md).
 
 ## Dump Environment
 
@@ -365,7 +365,7 @@ make ephemeral-swap-branch
 make ephemeral-swap-branch ID=6bd2d3d7 NEW_BRANCH=my-other-feature
 
 # Explicit — swap to a branch on a different fork
-make ephemeral-swap-branch ID=6bd2d3d7 NEW_BRANCH=my-feature NEW_REPO=my-fork/rosa-hyperfleet
+make ephemeral-swap-branch ID=6bd2d3d7 NEW_BRANCH=my-feature NEW_REPO=my-fork/rosa-seaplane
 ```
 
 > ⚠️ _Ensure the new branch is pushed to the remote before swapping — the environment is built from the remote ref._

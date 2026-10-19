@@ -1,9 +1,9 @@
-# Scheduled report: ROSA HyperFleet weekly security report
+# Scheduled report: ROSA Seaplane weekly security report
 
 ## Overview
 
 You are running a **cron** scheduled task that performs a security scan using
-the Adversary skill in Groundwork mode to analyze all HyperFleet repos and
+the Adversary skill in Groundwork mode to analyze all Seaplane repos and
 provide a summary of aggregate risk. Results will be posted to Slack in **one
 consolidated message using threaded replies.** **Always produce a report.**
 
@@ -22,10 +22,10 @@ generating the report or Slack message until all scans have completed.
 
 ## Definitions
 
-**Key Repos** The key repos for HyperFleet are: rosa-hyperfleet,
-rosa-hyperfleet-api and rosa-hyperfleet-kube-applier. While all HyperFleet repos
+**Key Repos** The key repos for Seaplane are: rosa-seaplane,
+rosa-seaplane-api and rosa-seaplane-kube-applier. While all Seaplane repos
 will be scanned during this task, the key repos are identified to focus the team
-on issues that present greater operational risk to HyperFleet.
+on issues that present greater operational risk to Seaplane.
 
 ## References
 
@@ -123,17 +123,17 @@ Title
 - Impact: what an attacker could achieve Remediation: Step 1 (fix) → Step 2
   (verify) → Step 3 (prevent) → Step 4 (harden)
 
-### HyperFleet Knowledge
+### Seaplane Knowledge
 
-This section contains reference info for HyperFleet, that you will utilize when
+This section contains reference info for Seaplane, that you will utilize when
 synthesizing the results from all repo scans to aggregate risks and produce the
 output.
 
-%reference(https://raw.githubusercontent.com/openshift-online/rosa-hyperfleet/refs/heads/main/docs/design/regional-control-plane-architecture.md)
+%reference(https://raw.githubusercontent.com/openshift-online/rosa-seaplane/refs/heads/main/docs/design/regional-control-plane-architecture.md)
 
-%reference(https://raw.githubusercontent.com/openshift-online/rosa-hyperfleet/refs/heads/main/docs/design/aws-iam-hosted-cluster-authentication.md)
+%reference(https://raw.githubusercontent.com/openshift-online/rosa-seaplane/refs/heads/main/docs/design/aws-iam-hosted-cluster-authentication.md)
 
-%reference(https://raw.githubusercontent.com/openshift-online/rosa-hyperfleet/refs/heads/main/docs/FAQ.md)
+%reference(https://raw.githubusercontent.com/openshift-online/rosa-seaplane/refs/heads/main/docs/FAQ.md)
 
 ## Abstract of Procedure
 
@@ -208,12 +208,12 @@ so this needs a real `gh` CLI via an RWS worker:
 1. `rws_pod_create` a small, short-lived workspace pod (1 CPU / 2Gi memory, ~15
    minute TTL — this only runs one CLI command).
 2. `rws_new_agent` on that pod: list every non-archived repository in
-   `openshift-online` whose name starts with `rosa-hyperfleet`, including the
+   `openshift-online` whose name starts with `rosa-seaplane`, including the
    url.
 3. `rws_query` the worker to run:
    ```
    gh repo list openshift-online --limit 1000 --no-archived --json name,nameWithOwner,url \
-     --jq '.[] | select(.name | ascii_downcase | startswith("rosa-hyperfleet"))'
+     --jq '.[] | select(.name | ascii_downcase | startswith("rosa-seaplane"))'
    ```
 4. `rws_pod_destroy` this discovery pod once you have the result — it's not
    needed for the scans themselves.
@@ -380,7 +380,7 @@ threaded replies.
 **Overall posture summary + severity count table** A short paragraph with a
 narrative on aggregate risk to the service based primarily on CRITICAL/HIGH
 findings from ALL repos (include MEDIUM/LOW findings in the overall posture
-summary when they factor in to the aggregate risk to HyperFleet), then a table
+summary when they factor in to the aggregate risk to Seaplane), then a table
 with severity counts:
 
 ```
@@ -406,7 +406,7 @@ Insert `---THREAD_BREAK---` to continue in the next threaded reply.
 
 **Full per-repo results** Iterate the list of repos scanned, according to
 ascending lexicographical order of repo name. A clearly labeled section header
-with the repo name in bold (e.g. `*rosa-hyperfleet-api results*`) followed by:
+with the repo name in bold (e.g. `*rosa-seaplane-api results*`) followed by:
 
 1. A table with with 2 rows with total severity counts for THIS repo, and the
    same emoji selection criteria for status (as used in the "Overall posture
@@ -425,8 +425,8 @@ with the repo name in bold (e.g. `*rosa-hyperfleet-api results*`) followed by:
    severity findings for THIS repo. If there are no CRITICAL/HIGH severity
    findings for THIS repo then state so. Do not manufacture risk from MEDIUM/LOW
    severity issues, however include MEDIUM/LOW severity issues in this synthesis
-   when the findings contribute to aggregate risk to HyperFleet, i.e. a MEDIUM
-   severity issue in this repo increases risk to HyperFleet because it's related
+   when the findings contribute to aggregate risk to Seaplane, i.e. a MEDIUM
+   severity issue in this repo increases risk to Seaplane because it's related
    to other HIGH findings in another repo analyzed during this instance.
 
 3. Top 10 CRITICAL/HIGH issues for this repo in order of descending risk, with a

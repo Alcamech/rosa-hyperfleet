@@ -46,9 +46,9 @@ platformApi:
         cpu: 500m
         memory: 512Mi
 
-  # HyperfleetDB connection (pgruntime-backed Postgres)
-  hyperfleetdb:
-    secretName: hyperfleet-db-dsn
+  # SeaplaneDB connection (pgruntime-backed Postgres)
+  seaplanedb:
+    secretName: seaplane-db-dsn
     secretKey: dsn
 
   # Envoy sidecar configuration

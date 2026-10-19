@@ -13,15 +13,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.request import urlopen
 
-REPO = "openshift-online/rosa-hyperfleet"
+REPO = "openshift-online/rosa-seaplane"
 GCS_BUCKET = "https://storage.googleapis.com/test-platform-results"
 BUILD_COUNT = 10
 
 PERIODIC_JOBS = [
-    "periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-ephemeral",
-    "periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-integration",
+    "periodic-ci-openshift-online-rosa-seaplane-main-nightly-ephemeral",
+    "periodic-ci-openshift-online-rosa-seaplane-main-nightly-integration",
 ]
-PR_JOB = "pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e"
+PR_JOB = "pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e"
 
 
 def log(msg):
@@ -101,7 +101,7 @@ def collect_pr_job():
         pr_number = "unknown"
         parts = path.split("/")
         for i, part in enumerate(parts):
-            if part == "rosa-hyperfleet" and i + 1 < len(parts):
+            if part == "rosa-seaplane" and i + 1 < len(parts):
                 pr_number = parts[i + 1]
                 break
 

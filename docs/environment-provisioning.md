@@ -72,7 +72,7 @@ aws ssm put-parameter --name "/infra/${ENV}/${REGION}/mc01/account_id" \
 
 The DNS zone operator trust policy uses `aws:PrincipalOrgPaths` to allow MC accounts to assume the cross-account role. The OU path is stored in SSM Parameter Store **in the RC account** at `/infra/<environment>/<region>/ou-path`.
 
-**This parameter is automatically created** by `rosa-hyperfleet-internal/infra/modules/account-config` when the RC account is minted. No manual creation is needed.
+**This parameter is automatically created** by `rosa-seaplane-internal/infra/modules/account-config` when the RC account is minted. No manual creation is needed.
 
 Example path: `/infra/stage/us-east-1/ou-path`
 
@@ -118,13 +118,13 @@ Switch to your Central AWS profile and create the CodePipelines.
 ```bash
 export AWS_PROFILE=<central-profile>
 
-GITHUB_REPOSITORY=<org>/rosa-hyperfleet \
+GITHUB_REPOSITORY=<org>/rosa-seaplane \
 GITHUB_BRANCH=<branch> \
 TARGET_ENVIRONMENT=<environment> \
 ./scripts/bootstrap-central-account.sh
 ```
 
-Defaults to `openshift-online/rosa-hyperfleet` on `main` if not specified.
+Defaults to `openshift-online/rosa-seaplane` on `main` if not specified.
 
 ### 3.2 Accept the CodeStar connection
 
@@ -163,7 +163,7 @@ Expected output:
 ```
 NAMESPACE   NAME                  SYNC STATUS   HEALTH STATUS
 argocd      argocd                Synced        Healthy
-argocd      hyperfleet            Synced        Healthy
+argocd      seaplane            Synced        Healthy
 argocd      monitoring          Synced        Healthy
 argocd      platform-api        Synced        Healthy
 argocd      root                Synced        Healthy

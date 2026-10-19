@@ -4,7 +4,7 @@
 
 ## Summary
 
-`kube-applier-aws` bridges the desire loop between the hyperfleet-operator and
+`kube-applier-aws` bridges the desire loop between the seaplane-operator and
 management cluster (MC) kube-apiservers. The operator writes declarative desire
 documents to DynamoDB; kube-applier reads them via a GSI two-speed polling
 watcher, applies or deletes the corresponding Kubernetes resources on the MC,
@@ -13,7 +13,7 @@ and writes status back to DynamoDB for the operator to consume.
 ## Context
 
 Management clusters run in isolated AWS accounts with no direct network path
-from the Regional Cluster (RC) where the hyperfleet-operator runs. A
+from the Regional Cluster (RC) where the seaplane-operator runs. A
 lightweight, stateless bridge is needed that:
 
 - Applies arbitrary Kubernetes resources to an MC kube-apiserver on behalf of
@@ -31,7 +31,7 @@ lightweight, stateless bridge is needed that:
 ```mermaid
 graph LR
     subgraph "RC Account"
-        HF["hyperfleet-operator"]
+        HF["seaplane-operator"]
         DBS["DynamoDB\nspecs tables"]
         DBT["DynamoDB\nstatus tables"]
     end
@@ -101,7 +101,7 @@ ListWatch on the MC kube-apiserver and writes the live JSON into
 
 ## Change Detection: Two-Speed GSI Engine
 
-kube-applier uses the `hyperfleet-dynamo` package to watch the specs tables
+kube-applier uses the `seaplane-dynamo` package to watch the specs tables
 without DynamoDB Streams. Two concurrent loops share an in-memory stub cache
 (`documentID → updateTime`):
 
@@ -151,7 +151,7 @@ leader actively polls; standby replicas do not start informers.
 
 ```mermaid
 sequenceDiagram
-    participant HF as hyperfleet-operator
+    participant HF as seaplane-operator
     participant DBS as specs table
     participant INF as Informer
     participant CTL as ApplyDesireController
@@ -202,7 +202,7 @@ always bypass the cooldown gate.
 
 ```mermaid
 sequenceDiagram
-    participant HF as hyperfleet-operator
+    participant HF as seaplane-operator
     participant DBS as specs table
     participant MGR as ReadDesireInformerManagingController
     participant KUB as ReadDesireKubernetesController (per-instance)

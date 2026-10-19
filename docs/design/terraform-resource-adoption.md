@@ -4,7 +4,7 @@
 
 ## Summary
 
-The ROSA HyperFleet uses a pipeline pre-step import framework to adopt pre-existing AWS resources into Terraform state. This enables full lifecycle management of resources that were originally auto-created by AWS services, created by imperative scripts, or provisioned outside of Terraform for any reason. The framework is generic — it works for any AWS resource type — and is fully idempotent.
+The ROSA Seaplane uses a pipeline pre-step import framework to adopt pre-existing AWS resources into Terraform state. This enables full lifecycle management of resources that were originally auto-created by AWS services, created by imperative scripts, or provisioned outside of Terraform for any reason. The framework is generic — it works for any AWS resource type — and is fully idempotent.
 
 ## Context
 
@@ -284,21 +284,21 @@ resource "aws_kms_key" "rds_logs" {
 }
 
 resource "aws_kms_alias" "rds_logs" {
-  name          = "alias/${var.regional_id}-hyperfleet-rds-logs"
+  name          = "alias/${var.regional_id}-seaplane-rds-logs"
   target_key_id = aws_kms_key.rds_logs.key_id
 }
 
 # Log group with retention + KMS (FedRAMP AU-09, AU-11)
 resource "aws_cloudwatch_log_group" "rds_postgresql" {
-  name              = "/aws/rds/instance/${var.regional_id}-hyperfleet/postgresql"
+  name              = "/aws/rds/instance/${var.regional_id}-seaplane/postgresql"
   retention_in_days = 365
   kms_key_id        = aws_kms_key.rds_logs.arn
 
   # Ensure the DB instance exists before we claim its log group
-  depends_on = [aws_db_instance.hyperfleet]
+  depends_on = [aws_db_instance.seaplane]
 
   tags = merge(local.common_tags, {
-    Name = "${var.regional_id}-hyperfleet-rds-postgresql-logs"
+    Name = "${var.regional_id}-seaplane-rds-postgresql-logs"
   })
 }
 ```
@@ -310,11 +310,11 @@ resource "aws_cloudwatch_log_group" "rds_postgresql" {
 RDS creates log groups with predictable names based on the DB instance identifier:
 
 ```bash
-# RDS instance identifier is: ${regional_id}-hyperfleet
+# RDS instance identifier is: ${regional_id}-seaplane
 # RDS creates: /aws/rds/instance/<identifier>/<log-type>
 import_if_needed \
-    'module.hyperfleet_db.aws_cloudwatch_log_group.rds_postgresql' \
-    "/aws/rds/instance/${TF_VAR_regional_id}-hyperfleet/postgresql"
+    'module.seaplane_db.aws_cloudwatch_log_group.rds_postgresql' \
+    "/aws/rds/instance/${TF_VAR_regional_id}-seaplane/postgresql"
 ```
 
 #### Dynamic imports (server-assigned IDs)
@@ -343,8 +343,8 @@ API Gateway uses UUIDs in its log group names. These are only known after the pa
 
 ```text
 --- Importing resources ---
-  [imported] ...rds_postgresql <- /aws/rds/instance/int-regional-hyperfleet/postgresql
-  [imported] ...rds_upgrade <- /aws/rds/instance/int-regional-hyperfleet/upgrade
+  [imported] ...rds_postgresql <- /aws/rds/instance/int-regional-seaplane/postgresql
+  [imported] ...rds_upgrade <- /aws/rds/instance/int-regional-seaplane/upgrade
   [imported] ...api_gateway_execution <- API-Gateway-Execution-Logs_xyz789/prod
 
 === Import summary ===

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Stage environment CLI for ROSA HyperFleet.
+# Stage environment CLI for ROSA Seaplane.
 #
 # Provides interactive access to the standing stage environment.
 # Uses AWS profiles with SAML authentication.
@@ -8,7 +8,7 @@
 # Typically invoked via Makefile targets (make stage-shell, etc.)
 #
 # The script constructs a temporary AWS config with the stage profiles.
-# Account IDs default to rosa-hyperfleet-internal; override with RRP_ACCOUNTS_STAGE.
+# Account IDs default to rosa-seaplane-internal; override with RRP_ACCOUNTS_STAGE.
 
 set -euo pipefail
 
@@ -81,10 +81,10 @@ profile_for() {
 
 # Create temporary AWS config with stage profiles.
 setup_aws_config() {
-    local accounts_file="${RRP_ACCOUNTS_STAGE:-${REPO_ROOT}/../rosa-hyperfleet-internal/infra/accounts/stage/accounts.json}"
+    local accounts_file="${RRP_ACCOUNTS_STAGE:-${REPO_ROOT}/../rosa-seaplane-internal/infra/accounts/stage/accounts.json}"
     [[ -f "$accounts_file" ]] \
         || die "Account IDs file not found: $accounts_file
-    Either clone rosa-hyperfleet-internal as a sibling directory,
+    Either clone rosa-seaplane-internal as a sibling directory,
     or set RRP_ACCOUNTS_STAGE to point to your accounts JSON file.
     See docs/development-environment.md for details."
 
@@ -108,22 +108,22 @@ setup_aws_config() {
 
     init_aws_config
 
-    # Stage uses rosa-hyperfleet-account-admin role (minted by internal repo)
+    # Stage uses rosa-seaplane-account-admin role (minted by internal repo)
     # instead of OrganizationAccountAccessRole
     cat > "$AWS_CONFIG_FILE" <<AWSCFG
 [profile rrp-stage-admin]
-credential_process = uv run ${SCRIPT_DIR}/cached_saml_credentials_process.py ${CENTRAL_ACCOUNT} ${CENTRAL_ACCOUNT}-rosa-hyperfleet-stage-admin
+credential_process = uv run ${SCRIPT_DIR}/cached_saml_credentials_process.py ${CENTRAL_ACCOUNT} ${CENTRAL_ACCOUNT}-rosa-seaplane-stage-admin
 region = ${STAGE_REGION}
 duration_seconds = 3600
 
 [profile rrp-stage-rc]
-role_arn = arn:aws:iam::${RC_ACCOUNT}:role/rosa-hyperfleet-account-admin
+role_arn = arn:aws:iam::${RC_ACCOUNT}:role/rosa-seaplane-account-admin
 source_profile = rrp-stage-admin
 region = ${STAGE_REGION}
 duration_seconds = 3600
 
 [profile rrp-stage-mc]
-role_arn = arn:aws:iam::${MC_ACCOUNT}:role/rosa-hyperfleet-account-admin
+role_arn = arn:aws:iam::${MC_ACCOUNT}:role/rosa-seaplane-account-admin
 source_profile = rrp-stage-admin
 region = ${STAGE_REGION}
 duration_seconds = 3600
@@ -134,7 +134,7 @@ AWSCFG
         cat >> "$AWS_CONFIG_FILE" <<AWSCFG
 
 [profile rrp-stage-customer]
-role_arn = arn:aws:iam::${CUSTOMER_ACCOUNT}:role/rosa-hyperfleet-account-admin
+role_arn = arn:aws:iam::${CUSTOMER_ACCOUNT}:role/rosa-seaplane-account-admin
 source_profile = rrp-stage-admin
 region = ${STAGE_REGION}
 duration_seconds = 3600
@@ -201,7 +201,7 @@ cmd_shell() {
         "$CI_IMAGE" \
         bash -c '
             echo ""
-            echo "ROSA HyperFleet — Stage Environment"
+            echo "ROSA Seaplane — Stage Environment"
             echo ""
             echo "Region:      $AWS_DEFAULT_REGION"
             echo "API Gateway: $API_URL"
@@ -482,7 +482,7 @@ cmd_port_forward() {
 
 cmd_e2e() {
     local e2e_ref="${E2E_REF:-main}"
-    local e2e_repo="${E2E_REPO:-https://github.com/openshift-online/rosa-hyperfleet-api.git}"
+    local e2e_repo="${E2E_REPO:-https://github.com/openshift-online/rosa-seaplane-api.git}"
 
     setup_aws_config
     write_stage_container_config

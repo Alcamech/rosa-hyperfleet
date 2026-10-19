@@ -79,8 +79,8 @@ if [[ "$CLUSTER_TYPE" == "regional-cluster" ]]; then
     SRE_THANOS_TARGET_GROUP_ARN=$(echo "$OUTPUTS" | jq -r '.sre_thanos_target_group_arn.value // ""')
     SRE_ALB_DNS_NAME=$(echo "$OUTPUTS" | jq -r '.sre_alb_dns_name.value // ""')
     SRE_DOMAIN=$(echo "$OUTPUTS" | jq -r '.sre_domain.value // ""')
-    _REDIS_HOST=$(echo "$OUTPUTS" | jq -r '.hyperfleet_redis_endpoint.value // ""')
-    _REDIS_PORT=$(echo "$OUTPUTS" | jq -r '.hyperfleet_redis_port.value // ""')
+    _REDIS_HOST=$(echo "$OUTPUTS" | jq -r '.seaplane_redis_endpoint.value // ""')
+    _REDIS_PORT=$(echo "$OUTPUTS" | jq -r '.seaplane_redis_port.value // ""')
     if [[ -n "$_REDIS_HOST" && -n "$_REDIS_PORT" ]]; then
         REDIS_ENDPOINT="${_REDIS_HOST}:${_REDIS_PORT}"
     else

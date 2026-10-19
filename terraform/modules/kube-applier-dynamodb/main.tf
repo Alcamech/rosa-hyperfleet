@@ -10,7 +10,7 @@
 #   Prefix (--status-table): mc-{mc}-status
 #   Suffixes appended by the client: -applydesires, -readdesires
 #
-# All four tables carry the updateTime-index GSI used by hyperfleet-dynamo's
+# All four tables carry the updateTime-index GSI used by seaplane-dynamo's
 # two-speed polling watcher (fast GSI fan-out + full relist). DynamoDB Streams
 # have been removed entirely.
 # =============================================================================
@@ -92,7 +92,7 @@ resource "aws_dynamodb_table" "specs" {
 # =============================================================================
 # Status Tables (read-write for the agent, with updateTime-index GSI)
 #
-# All status tables have the updateTime-index GSI so the hyperfleet-operator
+# All status tables have the updateTime-index GSI so the seaplane-operator
 # can watch for status changes written by kube-applier-aws via the same
 # two-speed GSI polling watcher used for specs tables.
 # =============================================================================

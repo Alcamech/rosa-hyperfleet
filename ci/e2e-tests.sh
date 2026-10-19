@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run e2e API tests from rosa-hyperfleet-api against the provisioned environment.
+# Run e2e API tests from rosa-seaplane-api against the provisioned environment.
 #
 # API URL resolution (first match wins):
 #   1. BASE_URL env var            — set by local wrapper scripts (ephemeral-env.sh, int-env.sh)
@@ -34,7 +34,7 @@ else
   fi
 fi
 export BASE_URL
-export HYPERFLEET_URL="${BASE_URL}"
+export SEAPLANE_URL="${BASE_URL}"
 echo "Running API e2e tests against ${BASE_URL}"
 
 # RHOBS API URL for observability E2E tests (Thanos Query read path).
@@ -53,7 +53,7 @@ else
   echo "WARNING: RHOBS_API_URL not available — observability tests will be skipped"
 fi
 
-# ZOA RC/MC API URLs, consumed further down by the rosa-hyperfleet-zoa clone
+# ZOA RC/MC API URLs, consumed further down by the rosa-seaplane-zoa clone
 # that runs its own `Label("smoke")` specs (see that repo's test/e2e/). Same
 # resolution order as RHOBS_API_URL above; local wrapper scripts
 # (ephemeral-env.sh) already export these directly, so this is mainly for
@@ -108,15 +108,15 @@ else
 fi
 
 E2E_REF="${E2E_REF:-main}"
-E2E_REPO="${E2E_REPO:-https://github.com/openshift-online/rosa-hyperfleet-api.git}"
+E2E_REPO="${E2E_REPO:-https://github.com/openshift-online/rosa-seaplane-api.git}"
 CLI_REF="${CLI_REF:-main}"
-CLI_REPO="${CLI_REPO:-https://github.com/openshift-online/rosa-hyperfleet-cli.git}"
+CLI_REPO="${CLI_REPO:-https://github.com/openshift-online/rosa-seaplane-cli.git}"
 ROSA_REPO_URL="${ROSA_REPO_URL:-https://github.com/openshift/rosa}"
-ROSA_REPO_BRANCH="${ROSA_REPO_BRANCH:-hyperfleet-v2}"
-ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER:-hyperfleet-sanity}"
+ROSA_REPO_BRANCH="${ROSA_REPO_BRANCH:-seaplane-v2}"
+ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER:-seaplane-sanity}"
 ROSA_TEST_PROFILE="${ROSA_TEST_PROFILE:-rosa-hcp-basic}"
 ZOA_REF="${ZOA_REF:-main}"
-ZOA_REPO="${ZOA_REPO:-https://github.com/openshift-online/rosa-hyperfleet-zoa.git}"
+ZOA_REPO="${ZOA_REPO:-https://github.com/openshift-online/rosa-seaplane-zoa.git}"
 
 E2E_SKIP_PLATFORM_API="${E2E_SKIP_PLATFORM_API:-false}"  # Set to "true" to skip
 E2E_SKIP_ZOA="${E2E_SKIP_ZOA:-false}"                    # Set to "true" to skip
@@ -144,10 +144,10 @@ print_suite_result() {
     fi
 }
 # ---------------------------------------------------------------------------
-# When triggered by a rosa-hyperfleet-zoa PR, only run ZOA's full e2e suite —
+# When triggered by a rosa-seaplane-zoa PR, only run ZOA's full e2e suite —
 # API, HCP, and monitoring tests are irrelevant for ZOA code changes.
 # ---------------------------------------------------------------------------
-if [[ "${REPO_NAME:-}" == "rosa-hyperfleet-zoa" ]]; then
+if [[ "${REPO_NAME:-}" == "rosa-seaplane-zoa" ]]; then
   echo ""
   echo "=== ZOA PR detected — running ZOA full e2e only ==="
   echo ""
@@ -206,9 +206,9 @@ else
   make test-e2e-api || platform_rc=$?
 fi
 
-# ZOA e2e coverage: rosa-hyperfleet-zoa owns its own e2e suite (test/e2e/).
+# ZOA e2e coverage: rosa-seaplane-zoa owns its own e2e suite (test/e2e/).
 #
-# - On hyperfleet/api PRs (JOB_TYPE=presubmit or unset): smoke (~2min, 6 specs per target)
+# - On seaplane/api PRs (JOB_TYPE=presubmit or unset): smoke (~2min, 6 specs per target)
 # - On nightlies (JOB_TYPE=periodic): full deep suite (~5min with parallel RC+MC)
 #
 # Both test-e2e and test-e2e-smoke auto-parallelize RC and MC when both URLs

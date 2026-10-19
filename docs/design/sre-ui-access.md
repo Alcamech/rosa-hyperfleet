@@ -1,4 +1,4 @@
-# ROSA Hyperfleet (v2): SRE UI Access
+# ROSA Seaplane (v2): SRE UI Access
 
 **Last Updated Date**: 2026-07-03
 
@@ -10,7 +10,7 @@ This document proposes replacing the current SSM + kubectl port-forward access t
 
 - **Problem Statement**: SRE UIs are currently accessible only via SSM + kubectl port-forwarding through ECS Fargate bastions. This approach is flaky (sessions drop, chains break), incompatible with Zero Operator Access (no audit trail, no identity propagation), and not production-ready (relies on temporary bastion infrastructure).
 - **Constraints**:
-  - No VPN connectivity exists between RH network and Hyperfleet AWS VPCs today
+  - No VPN connectivity exists between RH network and Seaplane AWS VPCs today
   - EKS clusters are fully private (`endpoint_public_access = false`)
   - Services must stay as `ClusterIP` (no `LoadBalancer` type, no Ingress controller)
   - Same pattern must work across ephemeral, integration, stage, and production environments
@@ -121,7 +121,7 @@ function FindProxyForURL(url, host) {
 
 ### Phase 3 (future, if required): Private ALB + VPN
 
-If full VPN connectivity between RH network and Hyperfleet VPCs becomes necessary, int/stage/prod environments could migrate to a private (internal) ALB. The transition would be a variable change: `internal = true`, `subnet_ids = private subnets`.
+If full VPN connectivity between RH network and Seaplane VPCs becomes necessary, int/stage/prod environments could migrate to a private (internal) ALB. The transition would be a variable change: `internal = true`, `subnet_ids = private subnets`.
 
 However, we'd prefer to avoid this path if possible:
 

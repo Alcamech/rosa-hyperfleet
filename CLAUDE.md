@@ -1,8 +1,8 @@
-# Rosa HyperFleet - Claude Instructions
+# Rosa Seaplane - Claude Instructions
 
 ## Project Overview
 
-The **ROSA HyperFleet** is a strategic redesign of Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP). This project transforms ROSA from a globally-centralized management model to a **regionally-distributed architecture** where each AWS region operates independently with its own control plane infrastructure.
+The **ROSA Seaplane** is a strategic redesign of Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP). This project transforms ROSA from a globally-centralized management model to a **regionally-distributed architecture** where each AWS region operates independently with its own control plane infrastructure.
 
 **Key Goals:**
 
@@ -17,7 +17,7 @@ The **ROSA HyperFleet** is a strategic redesign of Red Hat OpenShift Service on 
 
 1. **Regional Cluster (RC)** - EKS-based cluster running core services:
    - Platform API (customer-facing with AWS IAM auth)
-   - Hyperfleet Operator - postgres-based cluster lifecycle controller
+   - Seaplane Operator - postgres-based cluster lifecycle controller
    - kube-applier - DynamoDB-backed resource distribution to MCs
    - ArgoCD - GitOps deployment
    - Tekton - infrastructure provisioning pipelines
@@ -33,7 +33,7 @@ The **ROSA HyperFleet** is a strategic redesign of Red Hat OpenShift Service on 
 
 - **Compute**: Amazon EKS (Regional + Management Clusters)
 - **Networking**: VPC, API Gateway (regional), VPC Link v2, ALBs
-- **Storage**: Amazon RDS (hyperfleet-db), Amazon ElastiCache Valkey (rate limiting), EBS volumes
+- **Storage**: Amazon RDS (seaplane-db), Amazon ElastiCache Valkey (rate limiting), EBS volumes
 - **Identity**: AWS IAM for authentication and authorization
 - **Infrastructure**: Terraform modules with GitOps patterns
 - **CI/CD**: ArgoCD (apps), Tekton (infrastructure pipelines)
@@ -43,12 +43,12 @@ The **ROSA HyperFleet** is a strategic redesign of Red Hat OpenShift Service on 
 
 ## Project Tracking
 
-Work for the ROSA HyperFleet is tracked in Jira under two parent Outcomes:
+Work for the ROSA Seaplane is tracked in Jira under two parent Outcomes:
 
 - **[HPSTRAT-62](https://redhat.atlassian.net/browse/HPSTRAT-62)** ("Red Hat Cloud Data Sovereignty"): Feature-driven work covering the regional platform build-out (architecture, infrastructure, services, tooling).
 - **[HPSTRAT-11](https://redhat.atlassian.net/browse/HPSTRAT-11)** ("FedRAMP Moderate Technical Delivery"): Compliance work covering FedRAMP security controls, audit requirements, and certification readiness.
 
-Day-to-day engineering tasks (epics, stories, bugs) live in the **ROSAENG** project under the **[ROSA] HyperFleet** team (`customfield_10001`, id `0c538cd9-152b-49f6-ad7c-e2fa2f865809`).
+Day-to-day engineering tasks (epics, stories, bugs) live in the **ROSAENG** project under the **[ROSA] Seaplane** team (`customfield_10001`, id `0c538cd9-152b-49f6-ad7c-e2fa2f865809`).
 
 When creating ROSAENG issues:
 
@@ -71,8 +71,8 @@ When creating ROSAENG issues:
 
 - **GitOps First**: ArgoCD for cluster configuration management, infrastructure via Terraform
 - **Private-by-Default**: EKS clusters use fully private architecture with ECS bootstrap
-- **Declarative State**: Hyperfleet Operator (backed by hyperfleet-db) maintains single source of truth for all cluster state
-- **Event-Driven**: kube-applier reads desire documents from DynamoDB (written by hyperfleet-operator) and applies them to MCs via hyperfleet-dynamo GSI polling
+- **Declarative State**: Seaplane Operator (backed by seaplane-db) maintains single source of truth for all cluster state
+- **Event-Driven**: kube-applier reads desire documents from DynamoDB (written by seaplane-operator) and applies them to MCs via seaplane-dynamo GSI polling
 - **Regional Isolation**: Each region operates independently with minimal cross-region dependencies
 - **Explicit Feature Flags**: Optional or environment-specific infrastructure (e.g., CloudTrail, PagerDuty, resources with per-account limits) should be gated behind `enable_*` configuration flags. Avoid patterns like checking against the environment's name to change behavior or functionality.
   - Feature flags should default to what keeps the best developer experience — focus on the lowest barrier to getting a new region started. We'd rather have verbose production configs than require developers to understand every flag just to get going.
@@ -100,11 +100,11 @@ argocd/
 └── README.md
 
 .chai-bot/                    # Chai Bot scheduled tasks
-├── rosa_hyperfleet_adversary_scan.md             # On-demand single-repo adversary security scan
-├── rosa_hyperfleet_ci_daily_health_report.md     # Daily CI health report
-├── rosa_hyperfleet_ci_weekly_status.md            # Weekly Jira epic progress + PR stats
-├── rosa_hyperfleet_docs_update.md                 # Weekly doc staleness detection & update PRs
-└── rosa_hyperfleet_weekly_security_report.md      # Weekly consolidated adversary scan across all repos
+├── rosa_seaplane_adversary_scan.md             # On-demand single-repo adversary security scan
+├── rosa_seaplane_ci_daily_health_report.md     # Daily CI health report
+├── rosa_seaplane_ci_weekly_status.md            # Weekly Jira epic progress + PR stats
+├── rosa_seaplane_docs_update.md                 # Weekly doc staleness detection & update PRs
+└── rosa_seaplane_weekly_security_report.md      # Weekly consolidated adversary scan across all repos
 
 docs/
 ├── README.md                 # Architecture overview
@@ -218,7 +218,7 @@ The Platform API implements per-account rate limiting using the GCRA (Generic Ce
 
 **Architecture**: API Gateway (global throttle) → Platform API middleware (per-account GCRA) → ElastiCache Valkey (shared counters). Rate limiting runs after identity extraction but before authorization, so over-limit requests are rejected cheaply. The system fails open — if Valkey is unavailable, requests pass through.
 
-**Key files (rosa-hyperfleet)**:
+**Key files (rosa-seaplane)**:
 
 | File                                                       | Purpose                                                                     |
 | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -233,7 +233,7 @@ The Platform API implements per-account rate limiting using the GCRA (Generic Ce
 | `argocd/config/regional-cluster/alerting-rules/templates/` | PrometheusRule CRs for rate limit alerts                                    |
 | `docs/design/rate-limiting-architecture.md`                | ADR: rate limiting design decisions                                         |
 
-**Key files (rosa-hyperfleet-api)**: Rate limiting Go implementation lives in the API repo — `pkg/ratelimit/` (GCRA limiter, config loading), `pkg/middleware/ratelimit.go` (HTTP middleware), `cmd/rosa-regional-platform-api/main.go` (wiring).
+**Key files (rosa-seaplane-api)**: Rate limiting Go implementation lives in the API repo — `pkg/ratelimit/` (GCRA limiter, config loading), `pkg/middleware/ratelimit.go` (HTTP middleware), `cmd/rosa-regional-platform-api/main.go` (wiring).
 
 **Data flow for Valkey endpoint**: Terraform output → `bootstrap-argocd.sh` (combines host:port) → ECS task env var → cluster secret annotation → ApplicationSet valuesObject → Helm values → `REDIS_ENDPOINT` env var on platform-api pods.
 
@@ -246,9 +246,9 @@ Scheduled CI/documentation tasks run via Chai Bot. Schedules are defined in `.ch
 - `---THREAD_DETAILS---` — everything after this line becomes threaded replies (not posted to the channel)
 - `---THREAD_BREAK---` — separates individual threaded replies
 
-**Daily CI report** tracks the `nightly-ephemeral`, `nightly-integration`, and `nightly-stage` jobs. Top-level message shows today's status + 10-day trend table. It also reports, as a single condensed header line, the latest run of the **OCP nightly e2e** periodics — the HyperShift `periodic-ci-openshift-hypershift-release-{5.0,5.1}-periodics-e2e-rosa-hyperfleet` jobs that run rosa-hyperfleet e2e against OCP nightly release images (condensed latest-run header line plus a 10-run trend row per OCP version). Threaded replies are created only when jobs are failing, using the `ci-troubleshooter` agent for root cause analysis. Fix PRs are only raised when the fix lands in a hyperfleet repo (`rosa-hyperfleet`, `rosa-hyperfleet-api`, `rosa-hyperfleet-cli`); failures rooted in HyperShift or the OCP payload are reported with a recommendation but no PR.
+**Daily CI report** tracks the `nightly-ephemeral`, `nightly-integration`, and `nightly-stage` jobs. Top-level message shows today's status + 10-day trend table. It also reports, as a single condensed header line, the latest run of the **OCP nightly e2e** periodics — the HyperShift `periodic-ci-openshift-hypershift-release-{5.0,5.1}-periodics-e2e-rosa-seaplane` jobs that run rosa-seaplane e2e against OCP nightly release images (condensed latest-run header line plus a 10-run trend row per OCP version). Threaded replies are created only when jobs are failing, using the `ci-troubleshooter` agent for root cause analysis. Fix PRs are only raised when the fix lands in a seaplane repo (`rosa-seaplane`, `rosa-seaplane-api`, `rosa-seaplane-cli`); failures rooted in HyperShift or the OCP payload are reported with a recommendation but no PR.
 
-**Weekly status** groups epics by status (In Progress with completion %, To Do, Done) and summarizes PR activity across `rosa-hyperfleet`, `rosa-hyperfleet-api`, and `rosa-hyperfleet-cli`.
+**Weekly status** groups epics by status (In Progress with completion %, To Do, Done) and summarizes PR activity across `rosa-seaplane`, `rosa-seaplane-api`, and `rosa-seaplane-cli`.
 
 **Docs update** detects stale documentation across the three repos and creates PRs to fix it, using the `documentation-updater` agent for validation.
 

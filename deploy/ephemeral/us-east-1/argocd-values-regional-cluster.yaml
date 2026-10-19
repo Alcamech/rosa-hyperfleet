@@ -18,7 +18,7 @@ platformApi:
   app:
     args:
       defaultClusterExpiration: ''
-hyperfleet:
+seaplane:
   oidcS3Bucket: hypershift--regional-oidc-ssm:///infra/ephemeral/us-east-1/account_id
 pagerduty:
   enabled: false

@@ -4,7 +4,7 @@
 
 ## Summary
 
-The regional control plane manages ROSA HCP cluster lifecycles using Kubernetes-style reconciliation loops (controller-runtime) backed by PostgreSQL instead of etcd. This gives the team the reconciliation model it has deep expertise in while gaining the PITR, scalability, and queryability of a real database. The implementation consists of `hyperfleet-operator` (the controllers) and `hyperfleet-db` (a PostgreSQL-backed controller-runtime library).
+The regional control plane manages ROSA HCP cluster lifecycles using Kubernetes-style reconciliation loops (controller-runtime) backed by PostgreSQL instead of etcd. This gives the team the reconciliation model it has deep expertise in while gaining the PITR, scalability, and queryability of a real database. The implementation consists of `seaplane-operator` (the controllers) and `seaplane-db` (a PostgreSQL-backed controller-runtime library).
 
 ## Context
 
@@ -25,9 +25,9 @@ The regional control plane manages ROSA HCP cluster lifecycles using Kubernetes-
 graph TD
     Customer["Customer"] -->|SigV4| APIGW["API Gateway"]
     APIGW --> PlatformAPI["platform-api\n(stateless REST)"]
-    PlatformAPI -->|hyperfleet-db client| PG["PostgreSQL\n(RDS/Aurora)"]
+    PlatformAPI -->|seaplane-db client| PG["PostgreSQL\n(RDS/Aurora)"]
 
-    Operator["hyperfleet-operator\n(controller-runtime)"] -->|reconcile loop| PG
+    Operator["seaplane-operator\n(controller-runtime)"] -->|reconcile loop| PG
     Operator -->|writes desires| DynamoDB["DynamoDB\n(→ kube-applier → MCs)"]
     Compactor["compactor"] -->|tombstone GC| PG
 
@@ -36,11 +36,11 @@ graph TD
     style PG fill:#f0f0f0,stroke:#333
 ```
 
-**hyperfleet-operator** is a controller-runtime operator running on the Regional Cluster. It reconciles custom resources that model the cluster lifecycle.
+**seaplane-operator** is a controller-runtime operator running on the Regional Cluster. It reconciles custom resources that model the cluster lifecycle.
 
 The operator communicates with Management Clusters via DynamoDB desire documents. A desire is a declarative spec for a Kubernetes resource that should exist on an MC. The operator writes desires to DynamoDB; **kube-applier**, running on each MC, watches for desires and applies them to the local Kubernetes API server. Status flows back the same way — kube-applier writes observed state to DynamoDB status tables, and the operator reads it to update its own resource status.
 
-**hyperfleet-db** is a Go library that implements controller-runtime's `Manager`, `Client`, and `Cache` interfaces against PostgreSQL. It stores all Kubernetes resources in a single `kubernetes_resources` table. The operator and platform-api both use it:
+**seaplane-db** is a Go library that implements controller-runtime's `Manager`, `Client`, and `Cache` interfaces against PostgreSQL. It stores all Kubernetes resources in a single `kubernetes_resources` table. The operator and platform-api both use it:
 
 - **Operator**: uses the full `Manager` (client + cache + watch) for reconciliation
 - **platform-api**: uses `Client` directly (no cache needed for stateless request/response)
@@ -56,7 +56,7 @@ This means the operator's CRDs are not stored in etcd — PostgreSQL is the sole
 - **Fleet querying**: SQL queries over cluster state (e.g. degraded clusters, clusters by region, placement utilization) without building a separate reporting layer.
 - **Multi-AZ**: RDS synchronous standby provides zero acknowledged-write loss on failover.
 
-For detailed internals (schema, invariants, watch mechanism, race catalog), see [hyperfleet-db DESIGN.md](../../../rosa-hyperfleet-api/hyperfleet-db/docs/DESIGN.md).
+For detailed internals (schema, invariants, watch mechanism, race catalog), see [seaplane-db DESIGN.md](../../../rosa-seaplane-api/seaplane-db/docs/DESIGN.md).
 
 ## Alternatives Considered
 
@@ -65,7 +65,7 @@ For detailed internals (schema, invariants, watch mechanism, race catalog), see 
    - **Component count**: 5+ components in the reconcile loop (API server, sentinel, message broker, adapters, status reporters) vs. 2 (operator + PostgreSQL).
    - **Operational overhead**: More services to deploy, monitor, and debug during incidents.
 
-   For a detailed comparison of reliability and performance characteristics, see [Architecture Comparison](../../../rosa-hyperfleet-api/hyperfleet-db/docs/ARCHITECTURE_COMPARISON.md).
+   For a detailed comparison of reliability and performance characteristics, see [Architecture Comparison](../../../rosa-seaplane-api/seaplane-db/docs/ARCHITECTURE_COMPARISON.md).
 
 2. **Standard controller-runtime with etcd**: Using controller-runtime with its default etcd backend. This was rejected because:
    - **8 GB hard ceiling**: etcd's storage limit would require sharding to scale beyond a few thousand clusters, adding significant operational complexity.
@@ -75,7 +75,7 @@ For detailed internals (schema, invariants, watch mechanism, race catalog), see 
 ## Design Rationale
 
 - **Justification**: The team has deep expertise in Kubernetes-style reconciliation (watch, reconcile, requeue). By implementing controller-runtime's storage interfaces against PostgreSQL, the operator retains that programming model while gaining a real database's PITR, scalability beyond etcd's 8 GB ceiling, and SQL queryability over fleet state. The team owns the full stack.
-- **Evidence**: Measured write latency of p50=6.3ms / p99=29ms and throughput of 6,132 writes/s with realistic 15-20KB payloads (Aurora I/O Optimized, db.r6g.8xlarge). See [Architecture Comparison](../../../rosa-hyperfleet-api/hyperfleet-db/docs/ARCHITECTURE_COMPARISON.md) for full benchmarks.
+- **Evidence**: Measured write latency of p50=6.3ms / p99=29ms and throughput of 6,132 writes/s with realistic 15-20KB payloads (Aurora I/O Optimized, db.r6g.8xlarge). See [Architecture Comparison](../../../rosa-seaplane-api/seaplane-db/docs/ARCHITECTURE_COMPARISON.md) for full benchmarks.
 - **Comparison**: CLM's advantages (standard REST API, operational familiarity, existing ecosystem) are real but secondary to the team velocity and component reduction goals that motivated the change.
 
 ## Consequences
@@ -90,13 +90,13 @@ For detailed internals (schema, invariants, watch mechanism, race catalog), see 
 ### Negative
 
 - No direct `kubectl` access to cluster state — state lives in PostgreSQL, not the Kubernetes API server
-- hyperfleet-db is a custom library that must be maintained alongside upstream controller-runtime changes
+- seaplane-db is a custom library that must be maintained alongside upstream controller-runtime changes
 
 ## Cross-Cutting Concerns
 
 ### Reliability
 
-- **Resiliency**: RDS Multi-AZ synchronous standby provides zero acknowledged-write loss on failover. A continuous production verifier checks correctness invariants on live data. See [hyperfleet-db DESIGN.md](../../../rosa-hyperfleet-api/hyperfleet-db/docs/DESIGN.md) for the invariant catalog.
+- **Resiliency**: RDS Multi-AZ synchronous standby provides zero acknowledged-write loss on failover. A continuous production verifier checks correctness invariants on live data. See [seaplane-db DESIGN.md](../../../rosa-seaplane-api/seaplane-db/docs/DESIGN.md) for the invariant catalog.
 - **Observability**: The operator exposes standard controller-runtime metrics. The compactor logs tombstone deletion counts and compaction horizon advances.
 
 ### Performance

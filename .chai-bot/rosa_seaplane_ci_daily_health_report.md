@@ -1,12 +1,12 @@
-# Scheduled report: ROSA HyperFleet CI daily health report
+# Scheduled report: ROSA Seaplane CI daily health report
 
-You are running a **cron** scheduled task that produces a daily CI health report for ROSA HyperFleet jobs. Keep the report **as concise as possible** to minimize channel noise. When everything is healthy, keep the summary concise, but still use the standard report structure. Only expand into detail when something needs attention.
+You are running a **cron** scheduled task that produces a daily CI health report for ROSA Seaplane jobs. Keep the report **as concise as possible** to minimize channel noise. When everything is healthy, keep the summary concise, but still use the standard report structure. Only expand into detail when something needs attention.
 
 ## Goal
 
-Check the pass/fail history (last 10 completed builds per job) for ROSA HyperFleet CI periodic jobs. Report overall CI health and individual job status.
+Check the pass/fail history (last 10 completed builds per job) for ROSA Seaplane CI periodic jobs. Report overall CI health and individual job status.
 
-In addition, report the **OCP nightly e2e periodics** — the HyperShift periodics that run rosa-hyperfleet e2e against OCP nightly release images. Report them as extra rows in the same trend table plus a condensed status line in the header. If today's run has finished, show its real pass/fail; if it is still running (or hasn't started), show `:loader:` in its today cell instead of a pass/fail.
+In addition, report the **OCP nightly e2e periodics** — the HyperShift periodics that run rosa-seaplane e2e against OCP nightly release images. Report them as extra rows in the same trend table plus a condensed status line in the header. If today's run has finished, show its real pass/fail; if it is still running (or hasn't started), show `:loader:` in its today cell instead of a pass/fail.
 
 - Always post the top-level status to the channel (never call `no_action_required()`)
 - If all jobs are passing: post the status summary only — no threaded replies
@@ -17,7 +17,7 @@ In addition, report the **OCP nightly e2e periodics** — the HyperShift periodi
 ### 1. Load job configuration
 
 Fetch the CI configuration from the single source of truth:
-`https://raw.githubusercontent.com/openshift/release/refs/heads/main/ci-operator/config/openshift-online/rosa-hyperfleet/openshift-online-rosa-hyperfleet-main.yaml`
+`https://raw.githubusercontent.com/openshift/release/refs/heads/main/ci-operator/config/openshift-online/rosa-seaplane/openshift-online-rosa-seaplane-main.yaml`
 
 Use `fetch_web_content` to retrieve this YAML file. It defines all tests including periodic jobs with `cron:` schedules.
 
@@ -28,20 +28,20 @@ Use `fetch_web_content` to retrieve this YAML file. It defines all tests includi
 - `nightly-stage` (test name `as: nightly-stage`)
 
 The full Prow job names follow the pattern:
-`periodic-ci-openshift-online-rosa-hyperfleet-main-{test-name}`
+`periodic-ci-openshift-online-rosa-seaplane-main-{test-name}`
 
 If the fetch fails, fall back to these job names:
 
-- periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-ephemeral
-- periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-integration
-- periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-stage
+- periodic-ci-openshift-online-rosa-seaplane-main-nightly-ephemeral
+- periodic-ci-openshift-online-rosa-seaplane-main-nightly-integration
+- periodic-ci-openshift-online-rosa-seaplane-main-nightly-stage
 
-**Also track these 2 OCP nightly e2e periodics** (HyperShift repo — rosa-hyperfleet e2e against OCP nightly release images, `cron: 0 8 * * *`):
+**Also track these 2 OCP nightly e2e periodics** (HyperShift repo — rosa-seaplane e2e against OCP nightly release images, `cron: 0 8 * * *`):
 
-- `periodic-ci-openshift-hypershift-release-5.0-periodics-e2e-rosa-hyperfleet`
-- `periodic-ci-openshift-hypershift-release-5.1-periodics-e2e-rosa-hyperfleet`
+- `periodic-ci-openshift-hypershift-release-5.0-periodics-e2e-rosa-seaplane`
+- `periodic-ci-openshift-hypershift-release-5.1-periodics-e2e-rosa-seaplane`
 
-Their config lives in the HyperShift CI config (not the rosa-hyperfleet config above):
+Their config lives in the HyperShift CI config (not the rosa-seaplane config above):
 
 - `https://raw.githubusercontent.com/openshift/release/refs/heads/main/ci-operator/jobs/openshift/hypershift/openshift-hypershift-release-5.0-periodics.yaml`
 - `https://raw.githubusercontent.com/openshift/release/refs/heads/main/ci-operator/jobs/openshift/hypershift/openshift-hypershift-release-5.1-periodics.yaml`
@@ -52,7 +52,7 @@ For these two jobs, collect their recent completed runs (date, pass/fail, build 
 
 For each job, collect the **last 10 completed job runs** for the trend table. Use Prow CI tools (`search_prow_jobs`, `query_prowjobs`, etc.) or `fetch_web_content` on the job-history page.
 
-**Same-day reporting rule (rosa-hyperfleet jobs):** For `ephemeral`, `integration`, and `stage`, the "Latest Run Status" section must report **today's run**. Do not fall back to a previous day's completed run for the latest status. These three jobs run at `0 4 * * *` (04:00 UTC), so by the time this report runs they have normally finished.
+**Same-day reporting rule (rosa-seaplane jobs):** For `ephemeral`, `integration`, and `stage`, the "Latest Run Status" section must report **today's run**. Do not fall back to a previous day's completed run for the latest status. These three jobs run at `0 4 * * *` (04:00 UTC), so by the time this report runs they have normally finished.
 
 **Exception — OCP nightly e2e periodics:** Report these based on whether today's run has finished, not on the clock:
 
@@ -69,7 +69,7 @@ This exception **overrides** both the "today only" rule above and the generic "R
 - **scheduled** — today's run is queued but not yet started
 - **no run today** — no run was triggered today
 
-**Retry for in-progress jobs** (the three rosa-hyperfleet jobs; the OCP nightly periodics are excepted per Step 2 above)**:** If today's run for any tracked job is in a `scheduled` or `running` state:
+**Retry for in-progress jobs** (the three rosa-seaplane jobs; the OCP nightly periodics are excepted per Step 2 above)**:** If today's run for any tracked job is in a `scheduled` or `running` state:
 
 1. Wait **10 minutes** and re-check the job status
 2. Repeat up to **3 times** (30 minutes maximum wait)
@@ -144,7 +144,7 @@ hypershift-ocp-5.0-nightly:  ✅    ✅    ✅    ✅    ✅    ✅    ✅    �
 hypershift-ocp-5.1-nightly:  ✅    ❌    ✅    ✅    ✅    ✅    ✅    ✅    ✅   :loader:  8/9
 ```
 
-**One merged table; the last column is today.** The rosa-hyperfleet jobs run at 04:00 UTC and have finished by report time, so their today cell is a real ✅/❌. For the OCP nightly periodics, the today cell is a real ✅/❌ if that run has finished, or `:loader:` while it is still running (or hasn't started). The pass count ignores a `:loader:` cell, so an in-progress day reads e.g. `9/9`.
+**One merged table; the last column is today.** The rosa-seaplane jobs run at 04:00 UTC and have finished by report time, so their today cell is a real ✅/❌. For the OCP nightly periodics, the today cell is a real ✅/❌ if that run has finished, or `:loader:` while it is still running (or hasn't started). The pass count ignores a `:loader:` cell, so an in-progress day reads e.g. `9/9`.
 
 **Header line:** lead with a single `%JOB_EMOJI%` for the combined OCP nightly status (red if either version failed, green if both are passing/in progress, otherwise the mixed/pending dot — same rules as individual job health). Then, for each version, show the shorthand (`5.0`, `5.1`), the status in plain words, and a link to that version's latest run `(<%URL%|run>)`. Link to the run the status describes (the finished run, or today's in-progress build).
 
@@ -180,7 +180,7 @@ For each job whose **latest run failed**, produce a **separate threaded reply** 
    - Fetch scope based on Prow analysis: RC-only, MC + RC, or both if unclear
    - If S3 logs are inaccessible, report the specific error — classification ceiling becomes Unclear
 
-3. **Git commit correlation** (Step 5c in ci-troubleshooter) — **MANDATORY.** Identify the last passing run, find all commits between last-good and current-bad, and examine commits touching the failing component. Also check `rosa-hyperfleet-api` for API/hyperfleet-operator failures.
+3. **Git commit correlation** (Step 5c in ci-troubleshooter) — **MANDATORY.** Identify the last passing run, find all commits between last-good and current-bad, and examine commits touching the failing component. Also check `rosa-seaplane-api` for API/seaplane-operator failures.
 
 **S3 log handling:** Always extract tar.gz locally for full analysis. Clean up downloaded files immediately after analysis is complete — never leave S3 logs on disk between runs. See Step 5b in `.claude/agents/ci-troubleshooter.md` for the full procedure.
 
@@ -213,7 +213,7 @@ Format each threaded reply like this (omit any section that doesn't apply — e.
 
 *Scope* %RC / MC / RC→MC% · *Failed phase* %phase% (%duration%)
 
-*Fix* %PR link + one-line what it changes / proposed fix awaiting confirmation / where a non-hyperfleet fix belongs%
+*Fix* %PR link + one-line what it changes / proposed fix awaiting confirmation / where a non-seaplane fix belongs%
 
 :link: <%JOB_RUN_URL%|Build #%NUMBER%> · %DATE%%  · failing since %SINCE_DATE% (%N% days) if streak%
 ```
@@ -252,11 +252,11 @@ Include the cross-day comparison in the threaded reply so readers understand the
 
 Follow Step 10 in `.claude/agents/ci-troubleshooter.md` for the full procedure. The action differs by classification:
 
-**Hyperfleet-repo-only fix constraint (applies to ALL jobs):** Only propose/raise a fix PR when the fix lands in a **hyperfleet repo** — `rosa-hyperfleet`, `rosa-hyperfleet-api`, or `rosa-hyperfleet-cli`. This matters most for the **OCP nightly e2e** periodics, whose root cause may be in HyperShift or the OCP nightly payload itself. If the fix belongs in a non-hyperfleet repo (e.g. `openshift/hypershift`, `openshift/release`, or an OCP component), **do not raise a PR**. Instead report the root cause in the threaded reply, state where the fix belongs, and recommend manual follow-up. Still raise a PR normally when the genuine fix is in a hyperfleet repo.
+**Seaplane-repo-only fix constraint (applies to ALL jobs):** Only propose/raise a fix PR when the fix lands in a **seaplane repo** — `rosa-seaplane`, `rosa-seaplane-api`, or `rosa-seaplane-cli`. This matters most for the **OCP nightly e2e** periodics, whose root cause may be in HyperShift or the OCP nightly payload itself. If the fix belongs in a non-seaplane repo (e.g. `openshift/hypershift`, `openshift/release`, or an OCP component), **do not raise a PR**. Instead report the root cause in the threaded reply, state where the fix belongs, and recommend manual follow-up. Still raise a PR normally when the genuine fix is in a seaplane repo.
 
-**🔧 Genuine — raise PR directly (only if the fix is in a hyperfleet repo, per the constraint above):**
+**🔧 Genuine — raise PR directly (only if the fix is in a seaplane repo, per the constraint above):**
 
-1. **First genuine failure**: share root cause, raise a PR with the fix against the appropriate repo (`rosa-hyperfleet`, `rosa-hyperfleet-api`, or `rosa-hyperfleet-cli`). Branch name: `chai-bot/fix-<job>-<short-description>`. Label: `chai-bot`.
+1. **First genuine failure**: share root cause, raise a PR with the fix against the appropriate repo (`rosa-seaplane`, `rosa-seaplane-api`, or `rosa-seaplane-cli`). Branch name: `chai-bot/fix-<job>-<short-description>`. Label: `chai-bot`.
 2. **Continued genuine failure (same root cause)**: find the existing open chai-bot PR and add a comment with today's failure URL and any new evidence. Do not create a duplicate PR.
 3. **Root cause shifted**: close the existing PR with a comment explaining the root cause change. Open a new PR targeting the updated root cause.
 
@@ -329,7 +329,7 @@ The `TestClusterCreation` e2e test timed out waiting for the hosted cluster to b
 
 *Scope* RC→MC · *Failed phase* e2e-tests (after 42m)
 
-*Fix* <https://github.com/openshift-online/rosa-hyperfleet/pull/700|#700> — restore the correct table name in kube-applier values (updated today with this run's evidence)
+*Fix* <https://github.com/openshift-online/rosa-seaplane/pull/700|#700> — restore the correct table name in kube-applier values (updated today with this run's evidence)
 
 :link: <url|Build #1234> · Jun 30 · failing since Jun 29 (2 days)
 ```

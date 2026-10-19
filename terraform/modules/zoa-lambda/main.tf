@@ -49,10 +49,10 @@ locals {
     ASYNC_SCHEDULING_OVERHEAD_SECONDS = tostring(var.async_scheduling_overhead_seconds)
     LOG_LEVEL                         = var.log_level
     }, var.data_access_role_arn != "" ? { DATA_STORE_ROLE_ARN = var.data_access_role_arn } : {},
-    var.hyperfleet_db_endpoint != "" ? {
-      HYPERFLEET_DB_ENDPOINT = var.hyperfleet_db_endpoint
-      HYPERFLEET_DB_NAME     = var.hyperfleet_db_name
-      HYPERFLEET_DB_USERNAME = var.hyperfleet_db_username
+    var.seaplane_db_endpoint != "" ? {
+      SEAPLANE_DB_ENDPOINT = var.seaplane_db_endpoint
+      SEAPLANE_DB_NAME     = var.seaplane_db_name
+      SEAPLANE_DB_USERNAME = var.seaplane_db_username
   } : {})
 
   common_tags = {
@@ -270,12 +270,12 @@ resource "aws_iam_role_policy" "zoa_aws_read" {
         Resource = var.kms_key_arn
       },
       ],
-      var.hyperfleet_db_resource_arn != "" ? [{
+      var.seaplane_db_resource_arn != "" ? [{
         Effect = "Allow"
         Action = [
           "rds-db:connect",
         ]
-        Resource = var.hyperfleet_db_resource_arn
+        Resource = var.seaplane_db_resource_arn
       }] : []
     )
   })

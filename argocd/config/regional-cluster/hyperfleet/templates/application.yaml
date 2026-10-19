@@ -1,41 +1,41 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ index .Values "hyperfleet" "applicationName" }}
-  namespace: {{ index .Values "hyperfleet" "namespace" }}
+  name: {{ index .Values "seaplane" "applicationName" }}
+  namespace: {{ index .Values "seaplane" "namespace" }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: {{ index .Values "hyperfleet" "project" }}
+  project: {{ index .Values "seaplane" "project" }}
 
   source:
-    repoURL: {{ index .Values "hyperfleet" "source" "repoURL" }}
-    targetRevision: {{ index .Values "hyperfleet" "source" "targetRevision" }}
-    path: {{ index .Values "hyperfleet" "source" "path" }}
+    repoURL: {{ index .Values "seaplane" "source" "repoURL" }}
+    targetRevision: {{ index .Values "seaplane" "source" "targetRevision" }}
+    path: {{ index .Values "seaplane" "source" "path" }}
     helm:
       values: |
-        {{- if index .Values "hyperfleet" "helmValues" }}
-        {{- toYaml (index .Values "hyperfleet" "helmValues") | nindent 8 }}
+        {{- if index .Values "seaplane" "helmValues" }}
+        {{- toYaml (index .Values "seaplane" "helmValues") | nindent 8 }}
         {{- end }}
         awsRegion: {{ .Values.global.aws_region }}
         baseDomain: {{ .Values.baseDomain }}
-        oidcS3Bucket: {{ index .Values "hyperfleet" "oidcS3Bucket" }}
-        oidcIssuerBaseUrl: {{ index .Values "hyperfleet" "oidcIssuerBaseUrl" }}
+        oidcS3Bucket: {{ index .Values "seaplane" "oidcS3Bucket" }}
+        oidcIssuerBaseUrl: {{ index .Values "seaplane" "oidcIssuerBaseUrl" }}
         alertmanager:
           url: http://monitoring-alertmanager.monitoring.svc:9093
         postgres:
-          secretName: {{ .Values.global.postgres_secret_name | default "hyperfleet-db-dsn" }}
+          secretName: {{ .Values.global.postgres_secret_name | default "seaplane-db-dsn" }}
           secretKey: {{ .Values.global.postgres_secret_key | default "dsn" }}
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: {{ index .Values "hyperfleet" "targetNamespace" }}
+    namespace: {{ index .Values "seaplane" "targetNamespace" }}
 
   syncPolicy:
-    {{- if index .Values "hyperfleet" "syncPolicy" "automated" }}
+    {{- if index .Values "seaplane" "syncPolicy" "automated" }}
     automated:
-      prune: {{ index .Values "hyperfleet" "syncPolicy" "automated" "prune" }}
-      selfHeal: {{ index .Values "hyperfleet" "syncPolicy" "automated" "selfHeal" }}
+      prune: {{ index .Values "seaplane" "syncPolicy" "automated" "prune" }}
+      selfHeal: {{ index .Values "seaplane" "syncPolicy" "automated" "selfHeal" }}
     {{- end }}
     retry:
       limit: -1

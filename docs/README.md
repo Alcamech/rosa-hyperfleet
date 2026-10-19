@@ -1,8 +1,8 @@
-# ROSA HyperFleet
+# ROSA Seaplane
 
 ## Overview
 
-The ROSA HyperFleet project is a strategic initiative to redesign the architecture of Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP). This new architecture moves away from a globally-centralized management model to a regionally-distributed approach, where each AWS region operates independently with its own control plane infrastructure.
+The ROSA Seaplane project is a strategic initiative to redesign the architecture of Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP). This new architecture moves away from a globally-centralized management model to a regionally-distributed approach, where each AWS region operates independently with its own control plane infrastructure.
 
 The goal is to improve reliability, reduce dependencies on global services, and provide customers with lower-latency access to cluster management through regional API endpoints.
 
@@ -10,7 +10,7 @@ The goal is to improve reliability, reduce dependencies on global services, and 
 
 The architecture consists of three layers within each region:
 
-1. **Regional Cluster (RC)** - EKS-based cluster running core services (Platform API, hyperfleet-operator, kube-applier, ArgoCD, Tekton)
+1. **Regional Cluster (RC)** - EKS-based cluster running core services (Platform API, seaplane-operator, kube-applier, ArgoCD, Tekton)
 2. **Management Clusters (MC)** - EKS clusters hosting customer Hosted Control Planes via HyperShift
 3. **Customer Hosted Clusters** - ROSA HCP clusters with control planes in MCs and workers in customer accounts
 
@@ -38,7 +38,7 @@ Detailed architecture and rationale for key technical decisions:
 | [Pipeline-Based Lifecycle](design/pipeline-based-lifecycle.md)                       | Current CodePipeline hierarchy (superseded for orchestration)             |
 | [Rate Limiting](design/rate-limiting-architecture.md)                                | Per-account rate limiting for Platform API                                |
 | [Regional Account Minting](design/regional-account-minting.md)                       | AWS account structure and minting pipelines                               |
-| [Regional Control Plane Architecture](design/regional-control-plane-architecture.md) | Operator + PostgreSQL control plane (hyperfleet-operator, hyperfleet-db)  |
+| [Regional Control Plane Architecture](design/regional-control-plane-architecture.md) | Operator + PostgreSQL control plane (seaplane-operator, seaplane-db)  |
 | [Regional OIDC Ownership](design/regional-oidc-ownership.md)                         | Shared OIDC bucket per region, cross-account MC writes                    |
 | [Spec-to-PR Agent](design/spec-to-pr-agent.md)                                       | AI agent workflow for spec-driven implementation                          |
 | [SRE UI Access](design/sre-ui-access.md)                                             | ALB + OIDC access to SRE UIs replacing SSM port-forward                   |
@@ -57,7 +57,7 @@ Detailed architecture and rationale for key technical decisions:
 | [Provision a Hosted Cluster](hostedcluster-provisioning.md)          | Create and access a ROSA HCP cluster         |
 | [Hosted Cluster Teardown](hostedcluster-teardown.md)                 | Admin-only manual teardown and force cleanup |
 | [Adding Alerting Rules](adding-alerting-rules.md)                    | Platform alerting and recording rules        |
-| [Konflux onboarding](konflux-onboarding.md)                          | Onboard HyperFleet images to Konflux CI/CD   |
+| [Konflux onboarding](konflux-onboarding.md)                          | Onboard Seaplane images to Konflux CI/CD   |
 
 ### Reference
 
@@ -79,13 +79,13 @@ Each module has its own README with usage, inputs, outputs, and architecture:
 - [`bastion`](../terraform/modules/bastion/README.md) - Ephemeral bastion for private cluster access
 - [`kube-applier`](../terraform/modules/kube-applier/README.md) - IAM and Pod Identity for the kube-applier controller on MCs
 - [`kube-applier-dynamodb`](../terraform/modules/kube-applier-dynamodb/README.md) - DynamoDB tables and backend IAM role for kube-applier (RC account)
-- [`hyperfleet-db`](../terraform/modules/hyperfleet-db/) - Aurora PostgreSQL for hyperfleet-operator cluster/nodepool state
+- [`seaplane-db`](../terraform/modules/seaplane-db/) - Aurora PostgreSQL for seaplane-operator cluster/nodepool state
 - [`grafana-cloudwatch-logs`](../terraform/modules/grafana-cloudwatch-logs/) - IAM + Pod Identity for Grafana CloudWatch Logs datasources (RC primary + MC reader)
 - [`aws-load-balancer-controller`](../terraform/modules/aws-load-balancer-controller/README.md) - IAM role and Pod Identity association for AWS Load Balancer Controller
 
 ### ArgoCD Helm Chart Documentation
 
-- [`hyperfleet`](../argocd/config/regional-cluster/hyperfleet/) - Hyperfleet Operator (postgres-based cluster lifecycle controller)
+- [`seaplane`](../argocd/config/regional-cluster/seaplane/) - Seaplane Operator (postgres-based cluster lifecycle controller)
 - [`platform-api`](../argocd/config/regional-cluster/platform-api/README.md) - Platform API with Envoy sidecar
 - [`thanos`](../argocd/config/regional-cluster/thanos/) - Thanos platform resources (CRs, S3 secret, Pod Identity SA, ALB TargetGroupBinding) plus app-of-apps Application that installs the upstream operator
 - [`thanos-operator`](../argocd/config/regional-cluster/thanos-operator/) - Thin wrapper chart that delivers the Thanos operator via OCI-packaged Helm subchart

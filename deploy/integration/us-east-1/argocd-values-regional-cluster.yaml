@@ -18,7 +18,7 @@ platformApi:
   app:
     args:
       defaultClusterExpiration: 24h
-hyperfleet:
+seaplane:
   oidcS3Bucket: PLACEHOLDER-overridden-by-terraform-output
 pagerduty:
   enabled: true

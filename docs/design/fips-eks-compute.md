@@ -4,7 +4,7 @@
 
 ## Summary
 
-All EKS clusters in the ROSA HyperFleet use self-managed Karpenter with an `EC2NodeClass` (`fips`)
+All EKS clusters in the ROSA Seaplane use self-managed Karpenter with an `EC2NodeClass` (`fips`)
 and a cluster-type-specific `NodePool` for platform and application workloads. A dedicated
 `karpenter-bootstrap` managed node group (m7i.xlarge, 2 nodes, scheduled via the
 `system-cluster-critical` PriorityClass) provides stable capacity for Karpenter itself, CoreDNS, and
@@ -18,7 +18,7 @@ RHEL-based FIPS nodes are planned for a future iteration to align with the broad
 ## Context
 
 FIPS-enabled RHEL nodes support FIPS 140-2/140-3 validated cryptographic modules for node-level
-compute. The ROSA HyperFleet will use RHEL-based nodes with FIPS mode enabled via userData
+compute. The ROSA Seaplane will use RHEL-based nodes with FIPS mode enabled via userData
 configuration once the RHEL AMI work is complete. Node-level FIPS mode is one input to FedRAMP
 High/Moderate authorization; validated cryptography across cluster and workload operations
 (control plane, data in transit/at rest, application layer) requires additional controls beyond

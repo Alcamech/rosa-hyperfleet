@@ -1,24 +1,24 @@
-# Lifecycle alert silencing for HyperFleet
+# Lifecycle alert silencing for Seaplane
 
 **Last Updated Date**: 2026-08-17
 
 ## Summary
 
-Replace PromQL `unless` lifecycle exclusions in regional alert rules with **Alertmanager silences** managed by a **stateless HyperFleet silence reconciler** that watches `Cluster` resources and writes to the **regional cluster (RC) Alertmanager** using the Alertmanager v2 silence API (`POST /api/v2/silences`, `DELETE /api/v2/silence/{silenceID}`).
+Replace PromQL `unless` lifecycle exclusions in regional alert rules with **Alertmanager silences** managed by a **stateless Seaplane silence reconciler** that watches `Cluster` resources and writes to the **regional cluster (RC) Alertmanager** using the Alertmanager v2 silence API (`POST /api/v2/silences`, `DELETE /api/v2/silence/{silenceID}`).
 
 ## Context
 
 - **Problem Statement**: Install/delete suppression is embedded in every SLA alert expression (`unless on(namespace, name, cluster) (hcp:lifecycle_installing or hcp:lifecycle_deleting)` — [hcp-sla.yaml](../../argocd/config/regional-cluster/alerting-rules/templates/hcp-sla.yaml)). Each new alert must remember the wrapper; new reasons (limited support, maintenance) require more recording rules; lifecycle logic lives in metrics instead of the control plane that already owns cluster state.
 - **Constraints**: Evaluation and paging run on the RC ([alerting architecture](alerting-architecture.md)); silences must scope per HostedCluster; install-timeout alerts must remain fireable during install ([hcp-installation.yaml](../../argocd/config/regional-cluster/alerting-rules/templates/hcp-installation.yaml)).
-- **Assumptions**: Control plane is **hyperfleet-operator** + **hyperfleet-db** ([regional architecture](regional-control-plane-architecture.md)); MVP talks to in-cluster RC Alertmanager over Kubernetes `Service` DNS.
+- **Assumptions**: Control plane is **seaplane-operator** + **seaplane-db** ([regional architecture](regional-control-plane-architecture.md)); MVP talks to in-cluster RC Alertmanager over Kubernetes `Service` DNS.
 
 Prior RHOBS direction prefers **Alertmanager silence API + an external lifecycle caller** over PromQL wrappers ([Observatorium silence API #904](https://github.com/observatorium/api/pull/904), [OpenAPI spec](https://github.com/observatorium/api/blob/main/client/spec.yaml)).
 
 ## Alternatives Considered
 
 1. **Keep / expand PromQL `unless` wrappers**: Rejected — does not scale as alert and lifecycle-reason cardinality grows.
-2. **Embed silence logic in the main hyperfleet-operator reconciler**: Rejected — couples paging policy to the primary reconcile loop; harder to test and operate independently.
-3. **Persist silence IDs in hyperfleet-db**: Rejected — couples correctness to two stores; Alertmanager list + Cluster CR diff is sufficient.
+2. **Embed silence logic in the main seaplane-operator reconciler**: Rejected — couples paging policy to the primary reconcile loop; harder to test and operate independently.
+3. **Persist silence IDs in seaplane-db**: Rejected — couples correctness to two stores; Alertmanager list + Cluster CR diff is sufficient.
 4. **Customer-facing silence API**: Out of scope — privileged ops remain mediated via ZOA.
 
 ## Design Rationale
@@ -53,7 +53,7 @@ Add a **dedicated, stateless silence reconciler** (controller-runtime) that:
 2. Derives desired silences from the cluster's `.Status.Phase` and conditions. **MVP:** `installing` and `deleting` only; `limited_support` and `maintenance` follow once per-state exemption policies are defined.
 3. Each reconcile:
    - **List** silences from Alertmanager with `GET /api/v2/silences?filter=<cluster label matchers>&expired=false` (the API accepts label-matcher filters, not `createdBy`).
-   - **Filter locally** to silences where `createdBy=hyperfleet-silence-reconciler` and the structured comment matches the owner key (`cluster=<id>;reason=<lifecycle_reason>`).
+   - **Filter locally** to silences where `createdBy=seaplane-silence-reconciler` and the structured comment matches the owner key (`cluster=<id>;reason=<lifecycle_reason>`).
    - Ignore any returned silence with `status.state=expired` even if present.
    - **Diff** against the desired set, then create, renew, or expire.
    - For orphan cleanup, also list owned silences for clusters that recently left the shard (including deleted clusters) and expire any not in the desired set.
@@ -63,11 +63,11 @@ Add a **dedicated, stateless silence reconciler** (controller-runtime) that:
 - **Cluster CR** → what silences _should_ exist
 - **Alertmanager** → what silences _do_ exist
 
-No third store. No persisted silence IDs, intent hashes, or `endsAt` in hyperfleet-db.
+No third store. No persisted silence IDs, intent hashes, or `endsAt` in seaplane-db.
 
-Each desired silence is keyed by `(cluster_id, lifecycle_reason)` with `createdBy=hyperfleet-silence-reconciler` and a structured comment. If a prior `Create` succeeded but the reconciler crashed before finishing, the next reconcile's Alertmanager `List` sees the existing silence and skips creation.
+Each desired silence is keyed by `(cluster_id, lifecycle_reason)` with `createdBy=seaplane-silence-reconciler` and a structured comment. If a prior `Create` succeeded but the reconciler crashed before finishing, the next reconcile's Alertmanager `List` sees the existing silence and skips creation.
 
-**Orphan / drift handling:** Any silence from `createdBy=hyperfleet-silence-reconciler` matching a cluster that is **not** in the desired set for that reconcile gets expired. The normal reconcile loop handles orphans — no separate startup scan or DB-vs-AM comparison.
+**Orphan / drift handling:** Any silence from `createdBy=seaplane-silence-reconciler` matching a cluster that is **not** in the desired set for that reconcile gets expired. The normal reconcile loop handles orphans — no separate startup scan or DB-vs-AM comparison.
 
 ### Lifecycle states
 
@@ -75,7 +75,7 @@ Each desired silence is keyed by `(cluster_id, lifecycle_reason)` with `createdB
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `installing`      | Cluster provisioning in progress                                                                                                | Yes |
 | `deleting`        | Cluster teardown in progress                                                                                                    | Yes |
-| `limited_support` | Cluster marked limited support — **platform-api** writes the condition; **hyperfleet-operator** projects it to `Cluster` status | No  |
+| `limited_support` | Cluster marked limited support — **platform-api** writes the condition; **seaplane-operator** projects it to `Cluster` status | No  |
 | `maintenance`     | Planned SRE maintenance window — **platform-api** sets the maintenance condition; operator projects to `Cluster` status         | No  |
 
 `limited_support` and `maintenance` are out of MVP until per-state exemption matchers are approved (see below). The reconciler reads only `Cluster` status — never a separate flag source.
@@ -149,7 +149,7 @@ MVP implementation uses in-cluster Alertmanager v2 HTTP.
 
 - Lifecycle suppression decoupled from individual alert expressions
 - New lifecycle reasons do not require editing every PromQL rule
-- Stateless reconciler — no silence bookkeeping in hyperfleet-db
+- Stateless reconciler — no silence bookkeeping in seaplane-db
 - Aligns with RHOBS Alertmanager silence API direction
 
 ### Negative
@@ -187,7 +187,7 @@ MVP implementation uses in-cluster Alertmanager v2 HTTP.
 
 > **Not part of the MVP.**
 
-The MVP uses **Alertmanager inside the regional cluster**. The **Observatorium tenant silence API** only matters if HyperFleet hosts **full RHOBS per region** as a shared service rather than deploying observability components per RC today — a separate decision, not close in maturity.
+The MVP uses **Alertmanager inside the regional cluster**. The **Observatorium tenant silence API** only matters if Seaplane hosts **full RHOBS per region** as a shared service rather than deploying observability components per RC today — a separate decision, not close in maturity.
 
 If that path is taken later: tenant-scoped silence CRUD ([spec](https://github.com/observatorium/api/blob/main/client/spec.yaml), [#904](https://github.com/observatorium/api/pull/904)); gateway enforcer may require DELETE + POST for renew ([enforcer](https://github.com/observatorium/api/blob/main/api/metrics/v1/alertmanager_enforcer.go)); `SilenceClient` absorbs the transport swap.
 

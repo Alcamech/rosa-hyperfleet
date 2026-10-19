@@ -54,7 +54,7 @@ sequenceDiagram
 flowchart TB
     subgraph RC["Regional Cluster"]
         API["Platform API"]
-        HFO["hyperfleet-operator"]
+        HFO["seaplane-operator"]
         DDB["DynamoDB"]
         KAA["kube-applier"]
     end
@@ -89,7 +89,7 @@ flowchart TB
 
 1. **Platform API** captures the cluster creator's IAM ARN from the SigV4 request context (`X-Amz-Caller-Arn` header from API Gateway) and stores it in the cluster spec as `creatorARN`.
 
-2. **Hyperfleet operator** reads `creatorARN` from the cluster spec and includes it in the Manifest CR, which kube-applier delivers to the HC namespace:
+2. **Seaplane operator** reads `creatorARN` from the cluster spec and includes it in the Manifest CR, which kube-applier delivers to the HC namespace:
    - A `HostedCluster` with annotation `hypershift.openshift.io/aws-iam-authenticator: "true"`
    - An `aws-iam-auth-config` ConfigMap mapping the creator ARN to `system:masters`
 
@@ -107,9 +107,9 @@ If `creatorARN` is not set (e.g. API change not deployed), the ConfigMap is stil
 
 | Repository            | Files                                                                              | Change                                                                |
 | --------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `rosa-hyperfleet-api` | `hyperfleet-operator/internal/controller/`, `hyperfleet-operator/internal/render/` | `aws-iam-auth-config` ConfigMap, HC annotation, `creatorARN` handling |
-| `rosa-hyperfleet-api` | `pkg/handlers/cluster.go`                                                          | Inject `creatorARN` from SigV4 caller identity                        |
-| `rosa-hyperfleet-cli` | `internal/commands/cluster/kubeconfig.go`                                          | `rosactl cluster kubeconfig` command                                  |
+| `rosa-seaplane-api` | `seaplane-operator/internal/controller/`, `seaplane-operator/internal/render/` | `aws-iam-auth-config` ConfigMap, HC annotation, `creatorARN` handling |
+| `rosa-seaplane-api` | `pkg/handlers/cluster.go`                                                          | Inject `creatorARN` from SigV4 caller identity                        |
+| `rosa-seaplane-cli` | `internal/commands/cluster/kubeconfig.go`                                          | `rosactl cluster kubeconfig` command                                  |
 | `hypershift`          | `hostedcluster_controller.go`                                                      | ConfigMap sync HC->HCP, annotation in `mirroredAnnotations`           |
 | `hypershift`          | `kas/deployment.go`                                                                | `aws-iam-authenticator` sidecar injection                             |
 | `hypershift`          | `kas/oauth.go`                                                                     | Webhook redirect to localhost:21362                                   |

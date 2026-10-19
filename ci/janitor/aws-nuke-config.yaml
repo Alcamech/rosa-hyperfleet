@@ -1,4 +1,4 @@
-# aws-nuke configuration for ROSA HyperFleet CI accounts.
+# aws-nuke configuration for ROSA Seaplane CI accounts.
 #
 # Reference: https://github.com/ekristen/aws-nuke (v3)
 

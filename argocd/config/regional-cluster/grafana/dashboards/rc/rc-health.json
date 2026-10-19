@@ -1,7 +1,7 @@
 {
   "title": "RC Health",
   "uid": "rc-health",
-  "description": "Regional Cluster health dashboard. Provides an at-a-glance view of the RC: fleet-wide HCP SLA, Hyperfleet component health, monitoring stack status, node health, Karpenter provisioning, and Kubernetes workload health.",
+  "description": "Regional Cluster health dashboard. Provides an at-a-glance view of the RC: fleet-wide HCP SLA, Seaplane component health, monitoring stack status, node health, Karpenter provisioning, and Kubernetes workload health.",
   "tags": ["regional-cluster", "rc", "health", "sre"],
   "timezone": "browser",
   "refresh": "1m",
@@ -20,13 +20,13 @@
         "refresh": 1
       },
       {
-        "name": "hyperfleet_namespaces",
+        "name": "seaplane_namespaces",
         "type": "custom",
-        "label": "Hyperfleet Namespaces",
-        "query": "argocd|tekton-pipelines|hyperfleet",
+        "label": "Seaplane Namespaces",
+        "query": "argocd|tekton-pipelines|seaplane",
         "current": {
-          "text": "argocd|tekton-pipelines|hyperfleet",
-          "value": "argocd|tekton-pipelines|hyperfleet"
+          "text": "argocd|tekton-pipelines|seaplane",
+          "value": "argocd|tekton-pipelines|seaplane"
         },
         "hide": 2,
         "includeAll": false,
@@ -367,7 +367,7 @@
     {
       "id": 300,
       "type": "row",
-      "title": "Hyperfleet Components",
+      "title": "Seaplane Components",
       "gridPos": { "x": 0, "y": 18, "w": 24, "h": 1 },
       "collapsed": false
     },
@@ -375,13 +375,13 @@
       "id": 10,
       "type": "stat",
       "title": "Pods Running",
-      "description": "Number of pods in Running phase across Hyperfleet platform namespaces.",
+      "description": "Number of pods in Running phase across Seaplane platform namespaces.",
       "gridPos": { "x": 0, "y": 19, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"$hyperfleet_namespaces\", cluster=~\".*regional|\"})",
+          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"$seaplane_namespaces\", cluster=~\".*regional|\"})",
           "legendFormat": "Running"
         }
       ],
@@ -407,13 +407,13 @@
       "id": 11,
       "type": "stat",
       "title": "Pods Not Ready",
-      "description": "Number of pods in Hyperfleet namespaces that are not in a Ready state.",
+      "description": "Number of pods in Seaplane namespaces that are not in a Ready state.",
       "gridPos": { "x": 6, "y": 19, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "count(kube_pod_status_ready{condition=\"false\", namespace=~\"$hyperfleet_namespaces\", cluster=~\".*regional|\"} == 1) or vector(0)",
+          "expr": "count(kube_pod_status_ready{condition=\"false\", namespace=~\"$seaplane_namespaces\", cluster=~\".*regional|\"} == 1) or vector(0)",
           "legendFormat": "Not Ready"
         }
       ],
@@ -440,13 +440,13 @@
       "id": 12,
       "type": "stat",
       "title": "Container Restarts",
-      "description": "Total container restarts across Hyperfleet namespaces in the last hour. Frequent restarts indicate crash-looping or OOM issues.",
+      "description": "Total container restarts across Seaplane namespaces in the last hour. Frequent restarts indicate crash-looping or OOM issues.",
       "gridPos": { "x": 12, "y": 19, "w": 6, "h": 4 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$hyperfleet_namespaces\", cluster=~\".*regional|\"}[$__range])) or vector(0)",
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=~\"$seaplane_namespaces\", cluster=~\".*regional|\"}[$__range])) or vector(0)",
           "legendFormat": "Restarts"
         }
       ],
@@ -474,13 +474,13 @@
       "id": 13,
       "type": "timeseries",
       "title": "Pod Restarts by Namespace",
-      "description": "Container restart rate per Hyperfleet namespace. Helps identify which service is restarting.",
+      "description": "Container restart rate per Seaplane namespace. Helps identify which service is restarting.",
       "gridPos": { "x": 0, "y": 23, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~\"$hyperfleet_namespaces\", cluster=~\".*regional|\"}[5m]))",
+          "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~\"$seaplane_namespaces\", cluster=~\".*regional|\"}[5m]))",
           "legendFormat": "{{ namespace }}"
         }
       ],
@@ -506,13 +506,13 @@
       "id": 14,
       "type": "timeseries",
       "title": "Pods Not Ready by Namespace",
-      "description": "Count of not-ready pods per Hyperfleet namespace over time. Persistent non-zero values indicate degraded services.",
+      "description": "Count of not-ready pods per Seaplane namespace over time. Persistent non-zero values indicate degraded services.",
       "gridPos": { "x": 12, "y": 23, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (namespace) (kube_pod_status_ready{condition=\"false\", namespace=~\"$hyperfleet_namespaces\", cluster=~\".*regional|\"})",
+          "expr": "sum by (namespace) (kube_pod_status_ready{condition=\"false\", namespace=~\"$seaplane_namespaces\", cluster=~\".*regional|\"})",
           "legendFormat": "{{ namespace }}"
         }
       ],
