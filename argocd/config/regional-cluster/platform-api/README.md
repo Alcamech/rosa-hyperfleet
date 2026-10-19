@@ -28,7 +28,7 @@ platformApi:
   app:
     name: platform-api
     image:
-      repository: quay.io/cdoan0/rosa-regional-platform-api
+      repository: quay.io/cdoan0/rosa-seaplane-api
       tag: nodb
     args:
       allowedAccounts: "123456789012" # Comma-separated AWS account IDs
@@ -121,7 +121,7 @@ kubectl delete namespace platform-api
 | -------------------------------------- | ------------------------------------ | ------------------------------------------- |
 | `platformApi.namespace`                | Namespace to deploy into             | `platform-api`                              |
 | `platformApi.app.name`                 | Application name                     | `platform-api`                              |
-| `platformApi.app.image.repository`     | Container image repository           | `quay.io/cdoan0/rosa-regional-platform-api` |
+| `platformApi.app.image.repository`     | Container image repository           | `quay.io/cdoan0/rosa-seaplane-api` |
 | `platformApi.app.image.tag`            | Container image tag                  | `nodb`                                      |
 | `platformApi.app.args.allowedAccounts` | Comma-separated AWS account IDs      | `"123456789012"`                            |
 | `platformApi.app.args.logLevel`        | Log level (debug, info, warn, error) | `info`                                      |

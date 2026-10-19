@@ -124,7 +124,7 @@ class GitManager:
         log.info("Cloned at %s (https://github.com/%s/tree/%s)", head.stdout.strip(), self.source_repo, head.stdout.strip())
 
         # Configure git identity
-        self._run_git("config", "user.email", "ci-bot@rosa-regional-platform.dev")
+        self._run_git("config", "user.email", "ci-bot@rosa-seaplane.dev")
         self._run_git("config", "user.name", "ROSA CI Bot")
 
         # Add the token owner's fork as the push remote
@@ -188,7 +188,7 @@ class GitManager:
         )
 
         # Configure git identity
-        self._run_git("config", "user.email", "ci-bot@rosa-regional-platform.dev")
+        self._run_git("config", "user.email", "ci-bot@rosa-seaplane.dev")
         self._run_git("config", "user.name", "ROSA CI Bot")
 
         # Add fork as push remote (same repo for ephemeral branches)
