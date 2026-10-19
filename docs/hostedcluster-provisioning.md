@@ -4,11 +4,11 @@ This guide walks through creating a ROSA HCP cluster on the integration environm
 
 ## Prerequisites
 
-### ROSA HyperFleet CLI
+### ROSA Seaplane CLI
 
 ```bash
-git clone https://github.com/openshift-online/rosa-hyperfleet-cli.git
-cd rosa-hyperfleet-cli
+git clone https://github.com/openshift-online/rosa-seaplane-cli.git
+cd rosa-seaplane-cli
 make build
 
 # Install globally (optional)
@@ -20,7 +20,7 @@ make install
 ```bash
 git clone https://github.com/openshift/rosa.git
 cd rosa
-git checkout hyperfleet-v2
+git checkout seaplane-v2
 make rosa
 # Install into $GOBIN
 make install
@@ -34,7 +34,7 @@ command -v jq >/dev/null || echo "Need jq installed"
 
 ### Account Allowlisting
 
-Your AWS account must be registered with the platform before you can create clusters. Ask `@rrp-team-ic` in `#team-rosa-hyperfleet` to allowlist your account — provide your **AWS account ID** and the target **environment** (e.g. integration). This is a one-time step per account per environment.
+Your AWS account must be registered with the platform before you can create clusters. Ask `@rrp-team-ic` in `#team-rosa-seaplane` to allowlist your account — provide your **AWS account ID** and the target **environment** (e.g. integration). This is a one-time step per account per environment.
 
 <details>
 <summary>IC reference: allowlisting command</summary>
@@ -100,7 +100,7 @@ watch -n 1 rosactl cluster list $CLUSTER_NAME
 
 ```bash
 # Assuming you are running from the ROSA repo folder
-./rosa login --hyperfleet-url $API_URL
+./rosa login --seaplane-url $API_URL
 I: Logged in to Platform API: $API_URL
 
 ./rosa whoami
@@ -197,4 +197,4 @@ TBD
 - If you create more than 5 hosted clusters, ensure your AWS account has sufficient NAT gateway quota (default limit is 5).
 - For ephemeral (dev) environments, see [Development Environment](development-environment.md). The cluster creation flow is the same — only the `API_URL` differs.
 - For admin teardown procedures, see [Hosted Cluster Teardown](hostedcluster-teardown.md).
-- For assistance, reach out to @rrp-team-ic in #team-rosa-hyperfleet.
+- For assistance, reach out to @rrp-team-ic in #team-rosa-seaplane.

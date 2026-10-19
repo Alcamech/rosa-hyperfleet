@@ -86,7 +86,7 @@ resource "aws_iam_role_policy" "mc_codebuild_policy" {
         # This is intentionally scoped to the specific role name only.
         Effect   = "Allow"
         Action   = "sts:AssumeRole"
-        Resource = "arn:aws:iam::*:role/rosa-hyperfleet-account-admin"
+        Resource = "arn:aws:iam::*:role/rosa-seaplane-account-admin"
       },
       # Permissions for same-account operations (when TARGET_ACCOUNT_ID == CENTRAL_ACCOUNT_ID)
       # In production, cross-account deployments should use OrganizationAccountAccessRole

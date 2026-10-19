@@ -4,7 +4,7 @@
 
 ## Summary
 
-The ROSA HyperFleet collects, stores, and visualizes operational metrics across regional and management clusters using Prometheus, Thanos, and Grafana. Management cluster metrics are forwarded to the regional cluster via Prometheus remote_write through a SigV4-authenticated API Gateway, providing a single pane of glass for cross-cluster observability.
+The ROSA Seaplane collects, stores, and visualizes operational metrics across regional and management clusters using Prometheus, Thanos, and Grafana. Management cluster metrics are forwarded to the regional cluster via Prometheus remote_write through a SigV4-authenticated API Gateway, providing a single pane of glass for cross-cluster observability.
 
 ## Architecture
 
@@ -114,7 +114,7 @@ YACE polls AWS CloudWatch APIs and exposes metrics in Prometheus format. Both cl
 | `AWS/EKS`                     | apiserver_storage_size_bytes, scheduler_pending_pods, scheduler_schedule_attempts_total            | EKS control plane health             |
 | `AWS/DynamoDB` (kube-applier) | ConsumedRead/WriteCapacityUnits, ReturnedRecordsCount, ThrottledRequests                           | kube-applier desire tables           |
 | `AWS/ApiGateway`              | Count, Latency, 4XX/5XXError, IntegrationLatency                                                   | Platform + RHOBS API Gateways        |
-| `AWS/RDS`                     | CPUUtilization, FreeableMemory, ReadLatency, WriteLatency, BurstBalance, DatabaseConnections, IOPS | hyperfleet-db                        |
+| `AWS/RDS`                     | CPUUtilization, FreeableMemory, ReadLatency, WriteLatency, BurstBalance, DatabaseConnections, IOPS | seaplane-db                        |
 | `AWS/ApplicationELB`          | RequestCount, TargetResponseTime, HealthyHostCount, HTTPCode counts                                | API load balancer                    |
 | `AWS/DynamoDB`                | ConsumedRead/WriteCapacityUnits, UserErrors, ThrottledRequests, SuccessfulRequestLatency           | Authorization tables                 |
 | `AWS/CertificateManager`      | DaysToExpiry                                                                                       | API certificate lifecycle            |

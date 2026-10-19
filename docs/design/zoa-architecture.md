@@ -8,7 +8,7 @@ ZOA ensures that operators have **no persistent, interactive, or unaudited acces
 
 ZOA is independent of the Regional Cluster's Platform API or any Kubernetes workload — the tool to fix the platform does not depend on the platform being healthy.
 
-> For code-level architecture details (execution flows, SA isolation, streaming adapter, TA development), see the [ZOA repository documentation](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/README.md).
+> For code-level architecture details (execution flows, SA isolation, streaming adapter, TA development), see the [ZOA repository documentation](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/README.md).
 
 ## Context
 
@@ -72,7 +72,7 @@ graph TD
     WORKER_MC -.->|"cross-account"| DDB
 ```
 
-> For the complete architecture diagram including all component interactions, see the [ZOA README — Architecture](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/README.md#architecture).
+> For the complete architecture diagram including all component interactions, see the [ZOA README — Architecture](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/README.md#architecture).
 
 ### Authentication & Caller Boundaries
 
@@ -146,7 +146,7 @@ Each Trusted Action declares its execution mode. The mode determines how the TA 
 
 Both modes create per-execution K8s RBAC (ServiceAccount + Role + RoleBinding) that is destroyed after completion. For `kube-api` scope TAs, the Lambda uses SA impersonation (`rest.ImpersonationConfig`) so the K8s audit log reflects only the declared RBAC — not the Lambda's own broad permissions. For async mode, a scoped STS Secret is also created (S3 upload-only credentials restricted to the execution's prefix via session policy). For `aws-api` scope TAs, dedicated IAM roles (`zoa-aws-read` / `zoa-aws-write`) are assumed per-execution via STS with a session policy scoped to the specific TA's declared permissions.
 
-> For full sequence diagrams of both modes, see [Implementation Details](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/architecture/implementation.md).
+> For full sequence diagrams of both modes, see [Implementation Details](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md).
 
 ### Per-VPC Isolation
 
@@ -260,9 +260,9 @@ All configuration is via Terraform variables that map to Lambda environment vari
 | Encryption at rest     | KMS for DynamoDB + S3 + CloudWatch Logs; SQS server-side encryption (SSE-SQS) for DLQ                                                                                                                                                   |
 | Audit trail            | Every API call → DynamoDB audit table. Every execution → DynamoDB executions table. Logs → CloudWatch (365d).                                                                                                                           |
 | Jira enforcement       | Every execution requires a Jira ticket ID. Validated at API level (format: `PROJECT-123`).                                                                                                                                              |
-| EKS circuit breaker    | Trips after 3 consecutive EKS API failures within 30s; fast-fails for 60s to prevent timeout exhaustion. See [`circuit_breaker.go`](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/pkg/executor/circuit_breaker.go). |
+| EKS circuit breaker    | Trips after 3 consecutive EKS API failures within 30s; fast-fails for 60s to prevent timeout exhaustion. See [`circuit_breaker.go`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/pkg/executor/circuit_breaker.go). |
 
-For the full security model (threat model, SA isolation strategies, RBAC design), see [Implementation Details](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/architecture/implementation.md) in the ZOA repository.
+For the full security model (threat model, SA isolation strategies, RBAC design), see [Implementation Details](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md) in the ZOA repository.
 
 ## Deployment Flow
 
@@ -305,7 +305,7 @@ Two Grafana dashboards: **Lambda** (infrastructure) and **ZOA** (unified service
 | Dashboard                    | [`grafana/dashboards/zoa/zoa.json`](../../argocd/config/regional-cluster/grafana/dashboards/zoa/zoa.json)         |
 | YACE scrape config (RC)      | [`cloudwatch-exporter/values.yaml` (RC)](../../argocd/config/regional-cluster/cloudwatch-exporter/values.yaml)    |
 | YACE scrape config (MC)      | [`cloudwatch-exporter/values.yaml` (MC)](../../argocd/config/management-cluster/cloudwatch-exporter/values.yaml)  |
-| EMF metrics catalog and logs | [ZOA observability docs](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/observability.md) |
+| EMF metrics catalog and logs | [ZOA observability docs](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/observability.md) |
 
 ## Cost
 
@@ -416,15 +416,15 @@ ZOA CLI will run from a `rosa-boundary` ECS Fargate container — a pre-authenti
 - RC config: [`terraform/config/regional-cluster/`](../../terraform/config/regional-cluster/) (instantiates both modules)
 - MC config: [`terraform/config/management-cluster/`](../../terraform/config/management-cluster/) (instantiates `zoa-lambda` only)
 
-### In [`rosa-hyperfleet-zoa`](https://github.com/openshift-online/rosa-hyperfleet-zoa)
+### In [`rosa-seaplane-zoa`](https://github.com/openshift-online/rosa-seaplane-zoa)
 
-- [README](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/README.md) — Component overview, quick start, container images
-- [Lambda Model](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/architecture/lambda-model.md) — Handler modes, invoke modes, execution flow
-- [Implementation Details](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/architecture/implementation.md) — Streaming adapter, async execution, K8s Jobs, SA isolation
-- [CLI Reference](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/cli-reference.md) — All `zoa` CLI commands, flags, and usage examples
-- [Trusted Actions Guide](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/trusted-actions.md) — TA template format, CLI commands, API endpoints
-- [Development Guide](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/development.md) — Building, testing, local development
-- [E2E Testing](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/e2e-testing.md) — Functional and monitoring E2E suites, smoke vs full, CI integration
-- [Observability](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/observability.md) — EMF metrics catalog, cost model, Lambda logs, Grafana Explorer
-- [API Reference](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/api-reference.md) — Lambda Function URL HTTP API endpoints
-- [Konflux](https://github.com/openshift-online/rosa-hyperfleet-zoa/blob/main/docs/konflux.md) — Container image build pipeline
+- [README](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/README.md) — Component overview, quick start, container images
+- [Lambda Model](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/lambda-model.md) — Handler modes, invoke modes, execution flow
+- [Implementation Details](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md) — Streaming adapter, async execution, K8s Jobs, SA isolation
+- [CLI Reference](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/cli-reference.md) — All `zoa` CLI commands, flags, and usage examples
+- [Trusted Actions Guide](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/trusted-actions.md) — TA template format, CLI commands, API endpoints
+- [Development Guide](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/development.md) — Building, testing, local development
+- [E2E Testing](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/e2e-testing.md) — Functional and monitoring E2E suites, smoke vs full, CI integration
+- [Observability](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/observability.md) — EMF metrics catalog, cost model, Lambda logs, Grafana Explorer
+- [API Reference](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/api-reference.md) — Lambda Function URL HTTP API endpoints
+- [Konflux](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/konflux.md) — Container image build pipeline

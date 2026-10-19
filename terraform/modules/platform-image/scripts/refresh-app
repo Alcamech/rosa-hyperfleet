@@ -26,7 +26,7 @@ usage() {
   echo "  app_name must be a valid DNS-1123 name (max 253 characters)." >&2
   echo "" >&2
   echo "Examples:" >&2
-  echo "  $(basename "$0") hyperfleet-operator   # refreshes root, then hyperfleet-operator" >&2
+  echo "  $(basename "$0") seaplane-operator   # refreshes root, then seaplane-operator" >&2
   echo "  $(basename "$0") root                  # refreshes root only" >&2
   exit 1
 }

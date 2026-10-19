@@ -41,5 +41,5 @@ variable "eph_prefix" {
 variable "service_description" {
   description = "Description for the PagerDuty service"
   type        = string
-  default     = "ROSA HyperFleet alerting"
+  default     = "ROSA Seaplane alerting"
 }

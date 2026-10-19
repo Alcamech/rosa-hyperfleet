@@ -9,7 +9,7 @@
 
 ## Preferred: rosactl
 
-When the platform API is reachable, use [`rosactl`](https://github.com/openshift-online/rosa-hyperfleet-cli)
+When the platform API is reachable, use [`rosactl`](https://github.com/openshift-online/rosa-seaplane-cli)
 — it handles cluster deletion and CloudFormation stack cleanup without requiring
 break-glass access:
 
@@ -36,7 +36,7 @@ The full teardown flow is:
 4. Wait for the HostedCluster and NodePool to be removed from the MC
 5. Delete the CloudFormation stacks in the customer AWS account
 
-### Step 1 & 2 — Clean Up the hyperfleet-db Database (Regional Cluster)
+### Step 1 & 2 — Clean Up the seaplane-db Database (Regional Cluster)
 
 Open a bastion session to the Regional Cluster:
 
@@ -48,13 +48,13 @@ make int-bastion-rc
 make ephemeral-bastion-rc
 ```
 
-Once connected, run the cleanup script below. The script connects to the hyperfleet-db
+Once connected, run the cleanup script below. The script connects to the seaplane-db
 database, lists all clusters, and lets you choose to delete a single cluster or
 all clusters. It removes records from both the `clusters` and
 `adapter_statuses` tables.
 
 <details>
-<summary>cleanup-hyperfleet-db.sh</summary>
+<summary>cleanup-seaplane-db.sh</summary>
 
 ```bash
 #!/bin/bash
@@ -78,8 +78,8 @@ for cmd in oc jq psql; do
     fi
 done
 
-NAMESPACE="hyperfleet-system"
-SECRET_NAME="hyperfleet-api-db-credentials"
+NAMESPACE="seaplane-system"
+SECRET_NAME="seaplane-api-db-credentials"
 
 print_header "Retrieving database credentials from Kubernetes secret"
 
@@ -93,7 +93,7 @@ fi
 DB_PASSWORD=$(oc get secret -n "$NAMESPACE" "$SECRET_NAME" -o jsonpath='{.data.db\.password}' | base64 -d)
 DB_HOST=$(oc get secret -n "$NAMESPACE" "$SECRET_NAME" -o jsonpath='{.data.db\.host}' | base64 -d)
 DB_PORT=$(oc get secret -n "$NAMESPACE" "$SECRET_NAME" -o jsonpath='{.data.db\.port}' | base64 -d)
-DB_NAME="hyperfleet"
+DB_NAME="seaplane"
 DB_PORT="${DB_PORT:-5432}"
 
 if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ] || [ -z "$DB_HOST" ]; then
@@ -165,7 +165,7 @@ ADAPTER_TABLE_EXISTS=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NA
     "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'adapter_statuses');")
 
 echo ""
-print_info "WARNING: This will delete $DELETE_DESC from the hyperfleet-db database!"
+print_info "WARNING: This will delete $DELETE_DESC from the seaplane-db database!"
 if [ "$ADAPTER_TABLE_EXISTS" = "t" ]; then
     print_info "This will also delete matching records from the adapter_statuses table."
 fi
@@ -297,11 +297,11 @@ Job from the cleanup cronjob with `MAX_AGE_HOURS` set to `0`.
 From the RC bastion:
 
 ```bash
-oc -n hyperfleet-system get cronjob cluster-cleanup -o json \
+oc -n seaplane-system get cronjob cluster-cleanup -o json \
   | jq '{
       apiVersion: "batch/v1",
       kind: "Job",
-      metadata: {name: "cluster-cleanup-\(now | floor)", namespace: "hyperfleet-system"},
+      metadata: {name: "cluster-cleanup-\(now | floor)", namespace: "seaplane-system"},
       spec: (.spec.jobTemplate.spec | .template.spec.containers[0].env |= map(
         if .name == "MAX_AGE_HOURS" then .value = "0" else . end))
     }' \

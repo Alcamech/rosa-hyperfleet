@@ -1,16 +1,16 @@
-hyperfleet:
-  applicationName: hyperfleet-operator
+seaplane:
+  applicationName: seaplane-operator
 
   namespace: argocd
 
-  targetNamespace: hyperfleet
+  targetNamespace: seaplane
 
   project: default
 
   source:
-    repoURL: https://github.com/openshift-online/rosa-hyperfleet-api.git
+    repoURL: https://github.com/openshift-online/rosa-seaplane-api.git
     targetRevision: 455ce3077b946bf7bc8aae7b43aaa713a4c352cb
-    path: hyperfleet-operator/charts
+    path: seaplane-operator/charts
 
   syncPolicy:
     automated:
@@ -19,7 +19,7 @@ hyperfleet:
 
   helmValues:
     image:
-      repository: quay.io/redhat-user-workloads/rosa-tenant/hyperfleet-operator
+      repository: quay.io/redhat-user-workloads/rosa-tenant/seaplane-operator
       tag: "455ce3077b946bf7bc8aae7b43aaa713a4c352cb"
       pullPolicy: Always
 
@@ -27,7 +27,7 @@ hyperfleet:
 
     serviceAccount:
       create: true
-      name: hyperfleet-operator
+      name: seaplane-operator
       annotations: {}
 
     resources:

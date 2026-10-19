@@ -1,10 +1,10 @@
-# Manual scan: ROSA HyperFleet family Adversary security scan
+# Manual scan: ROSA Seaplane family Adversary security scan
 
 You are running this task **on demand** — manually triggered via the Slack Home tab "run now", or ad hoc — to perform a single-repo Adversary security scan and post the results to Slack. It is not on an automatic schedule: the scheduled task that references this file has `cron: "manual"`, so it only ever runs when someone explicitly triggers it. **Always produce a report.** **Never** call `no_action_required()`.
 
-**For the automated weekly scan** across the whole `rosa-hyperfleet*` family (every repo, one consolidated report), see `.chai-bot/rosa_hyperfleet_weekly_security_report.md` instead — that is the file the actual cron-scheduled task runs. This file exists for one-off, single-repo checks outside that weekly cadence.
+**For the automated weekly scan** across the whole `rosa-seaplane*` family (every repo, one consolidated report), see `.chai-bot/rosa_seaplane_weekly_security_report.md` instead — that is the file the actual cron-scheduled task runs. This file exists for one-off, single-repo checks outside that weekly cadence.
 
-This file is shared across all `rosa-hyperfleet*` repos via `%include()` — it does not name a specific repository. The task invoking this file supplies a `Repository:` line as context immediately before the `%include()` line; use that value everywhere this procedure refers to "the target repository." If no such context is present, treat this repository (`openshift-online/rosa-hyperfleet`) as the target. The Slack destination is not something you need to know or specify — deliver your report via `send_response()` as usual and the scheduler posts it to whichever channel this task is configured for.
+This file is shared across all `rosa-seaplane*` repos via `%include()` — it does not name a specific repository. The task invoking this file supplies a `Repository:` line as context immediately before the `%include()` line; use that value everywhere this procedure refers to "the target repository." If no such context is present, treat this repository (`openshift-online/rosa-seaplane`) as the target. The Slack destination is not something you need to know or specify — deliver your report via `send_response()` as usual and the scheduler posts it to whichever channel this task is configured for.
 
 This does not perform CVE scanning, runtime testing, or penetration testing — it's static/adversarial analysis of the repo, same as the `security:adversary` skill.
 
@@ -47,7 +47,7 @@ Post one top-level message with:
 Full report in thread :thread:
 ```
 
-- `{repo}`: the target repository's short name (e.g. `rosa-hyperfleet-api`), from the `Repository:` context line.
+- `{repo}`: the target repository's short name (e.g. `rosa-seaplane-api`), from the `Repository:` context line.
 - `{emoji}`: 🔴 if any CRITICAL or HIGH findings, 🟡 if only MEDIUM/LOW, 🟢 if clean.
 - If there are zero findings, state "No security issues identified in this scan." and skip the "Top findings" section and thread reply.
 

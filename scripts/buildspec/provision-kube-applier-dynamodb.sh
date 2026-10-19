@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision kube-applier DynamoDB tables and hyperfleet-operator IAM policy
+# Provision kube-applier DynamoDB tables and seaplane-operator IAM policy
 # in the RC account for this Management Cluster.
 # Called from: terraform/config/pipeline-management-cluster/buildspec-provision-kube-applier-dynamodb.yml
 set -euo pipefail

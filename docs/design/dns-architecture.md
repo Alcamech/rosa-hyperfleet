@@ -1,10 +1,10 @@
-# DNS Architecture for ROSA HyperFleet
+# DNS Architecture for ROSA Seaplane
 
 **Last Updated Date**: 2026-05-11
 
 ## Summary
 
-ROSA HyperFleet uses a hierarchical DNS architecture built on AWS Route 53, with DNSSEC throughout, that distributes records across per-region zone shards to scale beyond 10k records. Each regional deployment is uniquely identified by a `deployment_name` — which defaults to the AWS region name but can be suffixed to support multiple deployments per region within the same environment.
+ROSA Seaplane uses a hierarchical DNS architecture built on AWS Route 53, with DNSSEC throughout, that distributes records across per-region zone shards to scale beyond 10k records. Each regional deployment is uniquely identified by a `deployment_name` — which defaults to the AWS region name but can be suffixed to support multiple deployments per region within the same environment.
 
 ## Context
 
@@ -93,14 +93,14 @@ Zones created by HyperShift CPO in the customer account (not delegated from shar
 | 2   | `rosa.openshiftapps.com`                                | Control-account terraform      | Commons zone, NS via app-interface                                                                                                                                        |
 | 3   | `{deployment_name}.rosa.openshiftapps.com`              | Control-account terraform      | Regional zone; creates NS record in the commons zone (2)                                                                                                                  |
 | 4   | `api.{deployment_name}.rosa.openshiftapps.com`          | Regional pipeline              | Platform API record                                                                                                                                                       |
-| 5   | `{zone_shard}.{deployment_name}.rosa.openshiftapps.com` | Regional pipeline              | Zone shard; creates NS record in the regional zone (3). Grants permissions to external-dns and cert-manager from each MC. Informs hyperfleet-operator of all zone shards. |
+| 5   | `{zone_shard}.{deployment_name}.rosa.openshiftapps.com` | Regional pipeline              | Zone shard; creates NS record in the regional zone (3). Grants permissions to external-dns and cert-manager from each MC. Informs seaplane-operator of all zone shards. |
 | 6–8 | Cluster API, OAuth, ACME records                        | MC external-dns / cert-manager | Created in the zone shard (5)                                                                                                                                             |
 | 9   | NS delegation for `in.{...}` in shard                   | HyperShift CPO                 | DNSEndpoint CR picked up by external-dns on MC; delegates to the public ingress zone (11)                                                                                 |
 | 10  | Private ingress zone + records                          | HyperShift CPO                 | VPC-associated (not NS-delegated); created and reconciled in the customer account                                                                                         |
 | 11  | Public ingress zone + records                           | HyperShift CPO                 | NS-delegated from the shard (5) via (9); includes ACME CNAME delegation for cert-manager                                                                                  |
 | 12  | `{cluster_alias}.hypershift.local`                      | HyperShift CPO                 | Private zone, VPC-associated, in customer account                                                                                                                         |
 
-**Hyperfleet-operator responsibilities:**
+**Seaplane-operator responsibilities:**
 
 - Create and reconcile `DNSReservation` CRs to reserve DNS prefixes within zone shards. Each reservation lives in the account namespace (`account-<accountID>`) for isolation, and global uniqueness of the prefix within its shard is guaranteed by a corresponding `Index` resource in the shard's uniqueness namespace (`dns-shard-<id>-reservations`). Reservations are decoupled from cluster names — a `DNSReservation` can exist before a cluster claims it (e.g. for shared-VPC flows).
 - Monitor capacity and manage zone shard allocation (zone placement decision)
@@ -178,7 +178,7 @@ Phase 1 covers DNS hierarchy levels 1–8 (all records in the service provider's
 1. **DNS delegation setup** — establish the Cloudflare → environment zone → regional zone delegation chain for int, ci, and dev environments
 2. **Zone shard creation** — create initial zone shard(s) per regional zone
 3. **Cross-account IAM** — create the RC-side IAM role with OU-based trust and MC-side Pod Identity roles for external-dns and cert-manager
-4. **Operator zone shard awareness** — hyperfleet-operator tracks zone shard capacity and propagates the selected shard to the HostedCluster CR
+4. **Operator zone shard awareness** — seaplane-operator tracks zone shard capacity and propagates the selected shard to the HostedCluster CR
 5. **Operator update** — update HostedCluster manifest rendering in the operator to include the DNS domain in the HostedCluster spec
 
 ### Phase 2 — Customer Ingress DNS (pending HyperShift RFE)
@@ -216,7 +216,7 @@ Phase 2 covers DNS hierarchy levels 9–12 (customer account zones) and depends 
 
 ### Negative
 
-- Zone shard management adds operational complexity (hyperfleet-operator must track capacity and placement)
+- Zone shard management adds operational complexity (seaplane-operator must track capacity and placement)
 - DNSSEC key rotation requires coordination across account tiers
 - Multi-deployment scenarios require explicit `deployment_name` and `aws_region` overrides in config
 
@@ -242,7 +242,7 @@ Phase 2 covers DNS hierarchy levels 9–12 (customer account zones) and depends 
 ### Operability
 
 - Zone shards are created by the regional pipeline — no manual DNS management
-- Hyperfleet-operator automates shard allocation and capacity monitoring
+- Seaplane-operator automates shard allocation and capacity monitoring
 - `deployment_name` defaults to `aws_region` — no separate configuration step needed for the common case
 
 ## Testing Strategy

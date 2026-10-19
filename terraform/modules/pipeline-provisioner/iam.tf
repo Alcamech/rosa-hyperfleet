@@ -165,7 +165,7 @@ resource "aws_iam_role_policy" "codebuild_state_bootstrap" {
         Action = "sts:AssumeRole"
         Resource = [
           "arn:aws:iam::*:role/OrganizationAccountAccessRole",
-          "arn:aws:iam::*:role/rosa-hyperfleet-account-admin"
+          "arn:aws:iam::*:role/rosa-seaplane-account-admin"
         ]
       },
       {

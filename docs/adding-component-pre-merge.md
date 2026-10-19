@@ -1,29 +1,29 @@
 # Cross-Component E2E Testing
 
-Component repositories (e.g., `rosa-hyperfleet-api`) can run the rosa-hyperfleet e2e test suite against a full ephemeral environment with their PR-built image deployed.
+Component repositories (e.g., `rosa-seaplane-api`) can run the rosa-seaplane e2e test suite against a full ephemeral environment with their PR-built image deployed.
 
 ## Overview
 
-A reusable [step-registry workflow](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/ephemeral-e2e) in `openshift/release` handles everything:
+A reusable [step-registry workflow](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-seaplane/ephemeral-e2e) in `openshift/release` handles everything:
 
 1. **Image build** — ci-operator builds the component's Docker image from the PR source
 2. **Resolve OCP image** — Optionally resolves `OCP_RELEASE_STREAM` to the latest accepted OCP payload for the e2e HCP cluster (skipped when unset; see [OCP release image selection](#ocp-release-image-selection))
 3. **Image push** — The image is copied to `quay.io/rrp-dev-ci/` using `oc image mirror` from the OCP `cli` image (public, so EKS can pull it without credentials), tagged `ci-<PR>-<BUILD_ID>`
-4. **Provision** — Ephemeral environment provisioned from `rosa-hyperfleet` main, with the component's Helm values deep-merged with an inline YAML override
-5. **E2E tests** — The RRP testing suite (`./ci/e2e-tests.sh`) from rosa-hyperfleet runs against the environment
+4. **Provision** — Ephemeral environment provisioned from `rosa-seaplane` main, with the component's Helm values deep-merged with an inline YAML override
+5. **E2E tests** — The RRP testing suite (`./ci/e2e-tests.sh`) from rosa-seaplane runs against the environment
 6. **Teardown** — Ephemeral environment torn down (fire-and-forget)
 
 ## Workflow Steps
 
 | Step                                | Image                | Purpose                                                                     |
 | ----------------------------------- | -------------------- | --------------------------------------------------------------------------- |
-| `rosa-hyperfleet-resolve-ocp-image` | `rosa-hyperfleet-ci` | Resolves `OCP_RELEASE_STREAM` to an OCP release pullspec (no-op when unset) |
-| `rosa-hyperfleet-image-push`        | `ocp/4.21:cli`       | Copies CI-built image to quay.io using `oc image mirror`                    |
-| `rosa-hyperfleet-provision`         | `rosa-hyperfleet-ci` | Calls ephemeral provider with YAML overrides, provisions environment        |
-| `rosa-hyperfleet-e2e`               | `rosa-hyperfleet-ci` | Clones this repo, runs `./ci/e2e-tests.sh`                                  |
-| `rosa-hyperfleet-teardown`          | `rosa-hyperfleet-ci` | Clones this repo, runs teardown                                             |
+| `rosa-seaplane-resolve-ocp-image` | `rosa-seaplane-ci` | Resolves `OCP_RELEASE_STREAM` to an OCP release pullspec (no-op when unset) |
+| `rosa-seaplane-image-push`        | `ocp/4.21:cli`       | Copies CI-built image to quay.io using `oc image mirror`                    |
+| `rosa-seaplane-provision`         | `rosa-seaplane-ci` | Calls ephemeral provider with YAML overrides, provisions environment        |
+| `rosa-seaplane-e2e`               | `rosa-seaplane-ci` | Clones this repo, runs `./ci/e2e-tests.sh`                                  |
+| `rosa-seaplane-teardown`          | `rosa-seaplane-ci` | Clones this repo, runs teardown                                             |
 
-The `rosa-hyperfleet-ci` image is built from `ci/Containerfile` and promoted to the CI registry on every merge to `main` of `openshift-online/rosa-hyperfleet`.
+The `rosa-seaplane-ci` image is built from `ci/Containerfile` and promoted to the CI registry on every merge to `main` of `openshift-online/rosa-seaplane`.
 
 ## CI Credentials
 
@@ -36,7 +36,7 @@ Managed in [Vault](https://vault.ci.openshift.org/ui/vault/secrets/kv/kv/list/se
 
 ## Override Mechanism
 
-The provision step deep-merges a YAML fragment into a target file in the rosa-hyperfleet repo before the ephemeral provider commits and pushes the CI branch. This is used to inject PR-built component images into Helm values files.
+The provision step deep-merges a YAML fragment into a target file in the rosa-seaplane repo before the ephemeral provider commits and pushes the CI branch. This is used to inject PR-built component images into Helm values files.
 
 The override is configured via env vars in the CI config:
 
@@ -94,7 +94,7 @@ The `name: cert-manager` entry is matched against the existing dependencies list
 
 ## OCP release image selection
 
-By default the e2e HCP cluster uses the ephemeral environment's built-in OCP release image, so most component repos can ignore this. To run against a specific OCP stream instead, set `OCP_RELEASE_STREAM`; the [`rosa-hyperfleet-resolve-ocp-image`](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-hyperfleet/resolve-ocp-image) step resolves it to a public multi-arch pullspec the ephemeral environment can pull (it is a no-op when unset):
+By default the e2e HCP cluster uses the ephemeral environment's built-in OCP release image, so most component repos can ignore this. To run against a specific OCP stream instead, set `OCP_RELEASE_STREAM`; the [`rosa-seaplane-resolve-ocp-image`](https://github.com/openshift/release/tree/master/ci-operator/step-registry/rosa-seaplane/resolve-ocp-image) step resolves it to a public multi-arch pullspec the ephemeral environment can pull (it is a no-op when unset):
 
 - `ocp-branch-candidate` — newest accepted GA/z-stream/RC for the branch's OCP version. Suited to presubmits, so a failure points at the change under test.
 - `ocp-branch-nightly` — newest accepted multi-arch nightly for the branch's OCP version. Suited to periodics, to catch OCP regressions early.
@@ -106,7 +106,7 @@ Both track the branch's own `release-X.Y` version (and fall back to the newest o
 ### Prerequisites
 
 - The component has a `Dockerfile` that ci-operator can build
-- The component is deployable via a Helm chart in this repo (rosa-hyperfleet)
+- The component is deployable via a Helm chart in this repo (rosa-seaplane)
 
 ### Step 1: Create quay.io repository
 
@@ -114,7 +114,7 @@ Create a **public** repository under `quay.io/rrp-dev-ci/` for the component. Gr
 
 ### Step 2: Add CI config in openshift/release to your repository's job config
 
-Edit `ci-operator/config/<repo>/<org>-<repo>-<branch>.yaml`, e.g. [here](https://github.com/openshift/release/pull/76818/changes#diff-e1f3e71b4382080dfc304ae3b05b7cc97e95f2bf6cf49d744c4901fdc55274e1) for [rosa-hyperfleet-api](https://github.com/openshift-online/rosa-hyperfleet-api):
+Edit `ci-operator/config/<repo>/<org>-<repo>-<branch>.yaml`, e.g. [here](https://github.com/openshift/release/pull/76818/changes#diff-e1f3e71b4382080dfc304ae3b05b7cc97e95f2bf6cf49d744c4901fdc55274e1) for [rosa-seaplane-api](https://github.com/openshift-online/rosa-seaplane-api):
 
 ```yaml
 images:
@@ -124,7 +124,7 @@ images:
 tests:
   # ... existing tests ...
   - always_run: false
-    as: rosa-hyperfleet-compatibility-e2e
+    as: rosa-seaplane-compatibility-e2e
     steps:
       dependencies:
         CI_COMPONENT_IMAGE: <pipeline-image-name>
@@ -134,7 +134,7 @@ tests:
           <yaml-fragment-with-IMAGE_REPO-and-IMAGE_TAG-placeholders>
         ROSA_REGIONAL_HELM_VALUES_FILE: "argocd/config/regional-cluster/<component-name>/values.yaml"
         ROSA_REGIONAL_QUAY_DEST_REPO: "quay.io/rrp-dev-ci/<component>"
-      workflow: rosa-hyperfleet-ephemeral-e2e
+      workflow: rosa-seaplane-ephemeral-e2e
 ```
 
 Where:
@@ -157,14 +157,14 @@ make checkconfig
 On any PR in the component repo:
 
 ```
-/test rosa-hyperfleet-compatibility-e2e
+/test rosa-seaplane-compatibility-e2e
 ```
 
 ## Examples
 
-Consumers of the `rosa-hyperfleet-ephemeral-e2e` workflow, from simplest to most involved:
+Consumers of the `rosa-seaplane-ephemeral-e2e` workflow, from simplest to most involved:
 
-- **Single-image Helm component** — one image deep-merged into an ArgoCD values file. The canonical example is [`rosa-hyperfleet-api`](https://github.com/openshift-online/rosa-hyperfleet-api), covered step by step in [the onboarding SOP above](#sop-onboarding-a-new-component-repository).
+- **Single-image Helm component** — one image deep-merged into an ArgoCD values file. The canonical example is [`rosa-seaplane-api`](https://github.com/openshift-online/rosa-seaplane-api), covered step by step in [the onboarding SOP above](#sop-onboarding-a-new-component-repository).
 - **Multi-image / Terraform component (ZOA)** — multiple images injected into a Terraform defaults file.
 - **HyperShift (pre-merge + nightly)** — two images, plus an OCP payload matrix across presubmit and periodic flows.
 
@@ -178,7 +178,7 @@ Components that deploy through **Terraform** (not ArgoCD Helm) and/or have **mul
 | --------------- | -------------------------------------- | ------------------------------------------------- |
 | Image count     | 1 (or 2 for API)                       | 2 (Lambda + Runner)                               |
 | Override target | `argocd/config/.../values.yaml` (Helm) | `config/defaults.yaml` (Terraform via render.py)  |
-| Image push step | `rosa-hyperfleet-image-push` (shared)  | Same step — uses `ROSA_REGIONAL_EXTRA_COMPONENTS` |
+| Image push step | `rosa-seaplane-image-push` (shared)  | Same step — uses `ROSA_REGIONAL_EXTRA_COMPONENTS` |
 | Placeholders    | `IMAGE_REPO`, `IMAGE_TAG`              | `IMAGE_REPO`, `IMAGE_TAG` (per-image, same tag)   |
 
 #### `ROSA_REGIONAL_EXTRA_COMPONENTS` for ZOA
@@ -211,18 +211,18 @@ provisioning.
 
 #### Reference
 
-- **CI config**: [`openshift/release` — `ci-operator/config/openshift-online/rosa-hyperfleet-zoa/`](https://github.com/openshift/release/blob/master/ci-operator/config/openshift-online/rosa-hyperfleet-zoa/openshift-online-rosa-hyperfleet-zoa-main.yaml)
+- **CI config**: [`openshift/release` — `ci-operator/config/openshift-online/rosa-seaplane-zoa/`](https://github.com/openshift/release/blob/master/ci-operator/config/openshift-online/rosa-seaplane-zoa/openshift-online-rosa-seaplane-zoa-main.yaml)
 
 ### HyperShift Pre-Merge & Nightly E2E
 
 The [`openshift/hypershift`](https://github.com/openshift/hypershift) repo runs the same
-`rosa-hyperfleet-ephemeral-e2e` workflow to validate HyperShift changes against a full
+`rosa-seaplane-ephemeral-e2e` workflow to validate HyperShift changes against a full
 ephemeral environment. Two images from HyperShift are involved, deployed independently:
 
 | Image                 | Deployed as                                        | Override target                                           |
 | --------------------- | -------------------------------------------------- | --------------------------------------------------------- |
 | `hypershift-operator` | HyperShift operator (HO) on the Management Cluster | `argocd/config/management-cluster/hypershift/values.yaml` |
-| `hypershift`          | Control-plane-operator (CPO) on hosted clusters    | `argocd/config/regional-cluster/hyperfleet/values.yaml`   |
+| `hypershift`          | Control-plane-operator (CPO) on hosted clusters    | `argocd/config/regional-cluster/seaplane/values.yaml`   |
 
 #### Test matrix
 
@@ -230,7 +230,7 @@ The two flows differ in which images they override and which OCP payload they ru
 
 | Flow                      | Trigger                                          | HO (operator)                          | CPO (`hypershift`)                | OCP payload            |
 | ------------------------- | ------------------------------------------------ | -------------------------------------- | --------------------------------- | ---------------------- |
-| **Pre-merge** (presubmit) | `/test e2e-rosa-hyperfleet` on a PR (`optional`) | PR build                               | PR build                          | `ocp-branch-candidate` |
+| **Pre-merge** (presubmit) | `/test e2e-rosa-seaplane` on a PR (`optional`) | PR build                               | PR build                          | `ocp-branch-candidate` |
 | **Nightly** (periodic)    | daily at 08:00 UTC, per `release-X.Y` branch     | published `hypershift-operator:latest` | from OCP payload (not overridden) | `ocp-branch-nightly`   |
 
 - **Pre-merge** overrides **both** HO and CPO from the one PR build (via

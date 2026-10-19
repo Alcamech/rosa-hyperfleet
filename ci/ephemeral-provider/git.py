@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 GIT_TIMEOUT = 120  # seconds; clone/push can be slow on large repos
 HTTP_TIMEOUT = 30  # seconds; GitHub API calls
 RENDER_TIMEOUT = 300  # seconds; render.py may run terraform/heavy scripts
-UPSTREAM_REPO_NAME = "rosa-hyperfleet"
+UPSTREAM_REPO_NAME = "rosa-seaplane"
 
 
 class GitManager:

@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Implementing features for the ROSA HyperFleet requires a developer to manually iterate through a multi-step workflow: understanding the spec, writing code and tests, provisioning ephemeral environments, running e2e tests, debugging failures, and submitting PRs — often across multiple component repositories. This cycle is time-consuming, error-prone, and bottlenecked on human availability for repetitive debugging loops.
+Implementing features for the ROSA Seaplane requires a developer to manually iterate through a multi-step workflow: understanding the spec, writing code and tests, provisioning ephemeral environments, running e2e tests, debugging failures, and submitting PRs — often across multiple component repositories. This cycle is time-consuming, error-prone, and bottlenecked on human availability for repetitive debugging loops.
 
 ## Solution Overview
 
@@ -32,7 +32,7 @@ Build a **Spec-to-PR Agent** — a Python-based orchestrator using the Claude Ag
 - The agent MUST be able to implement E2E tests for the feature being developed
 - The agent MUST be able to implement the feature itself, including:
   - Injecting new versions of components into ArgoCD configurations
-  - Implementing new hyperfleet-operator controllers where required
+  - Implementing new seaplane-operator controllers where required
   - Making changes across multiple component repositories (e.g., hypershift, platform-api, CLI)
 - The agent MUST refine E2E tests and implementation based on test feedback
 
@@ -146,7 +146,7 @@ Build a **Spec-to-PR Agent** — a Python-based orchestrator using the Claude Ag
 ## Constraints
 
 - The existing `scripts/dev/ephemeral-env.sh` script is the source of truth for ephemeral operations — the skill wraps it rather than reimplementing
-- E2E tests live in the `rosa-hyperfleet-api` repo, not this repo
+- E2E tests live in the `rosa-seaplane-api` repo, not this repo
 - Ephemeral environments require AWS credentials injected at container startup (no Vault OIDC)
 - The persona format from the `psav/persona` branch needs to be migrated to structured JSON/YAML
 - Image build and push to ECR is a stretch goal — design for it but don't block on it

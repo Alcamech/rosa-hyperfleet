@@ -261,8 +261,8 @@ for region_dir in deploy/${ENVIRONMENT}/*/; do
         CHILD_ADMIN_ROLE_NAME=$(jq -r '.child_admin_role_name // "OrganizationAccountAccessRole"' "$REGIONAL_CONFIG")
 
         # Validate child_admin_role_name is one of the two allowed values
-        if [[ "$CHILD_ADMIN_ROLE_NAME" != "OrganizationAccountAccessRole" && "$CHILD_ADMIN_ROLE_NAME" != "rosa-hyperfleet-account-admin" ]]; then
-            echo "ERROR: child_admin_role_name must be either 'OrganizationAccountAccessRole' or 'rosa-hyperfleet-account-admin', got '${CHILD_ADMIN_ROLE_NAME}'" >&2
+        if [[ "$CHILD_ADMIN_ROLE_NAME" != "OrganizationAccountAccessRole" && "$CHILD_ADMIN_ROLE_NAME" != "rosa-seaplane-account-admin" ]]; then
+            echo "ERROR: child_admin_role_name must be either 'OrganizationAccountAccessRole' or 'rosa-seaplane-account-admin', got '${CHILD_ADMIN_ROLE_NAME}'" >&2
             exit 1
         fi
 
@@ -353,8 +353,8 @@ for region_dir in deploy/${ENVIRONMENT}/*/; do
             CHILD_ADMIN_ROLE_NAME=$(jq -r '.child_admin_role_name // "OrganizationAccountAccessRole"' "$mc_config")
 
             # Validate child_admin_role_name is one of the two allowed values
-            if [[ "$CHILD_ADMIN_ROLE_NAME" != "OrganizationAccountAccessRole" && "$CHILD_ADMIN_ROLE_NAME" != "rosa-hyperfleet-account-admin" ]]; then
-                echo "ERROR: child_admin_role_name must be either 'OrganizationAccountAccessRole' or 'rosa-hyperfleet-account-admin', got '${CHILD_ADMIN_ROLE_NAME}'" >&2
+            if [[ "$CHILD_ADMIN_ROLE_NAME" != "OrganizationAccountAccessRole" && "$CHILD_ADMIN_ROLE_NAME" != "rosa-seaplane-account-admin" ]]; then
+                echo "ERROR: child_admin_role_name must be either 'OrganizationAccountAccessRole' or 'rosa-seaplane-account-admin', got '${CHILD_ADMIN_ROLE_NAME}'" >&2
                 exit 1
             fi
 

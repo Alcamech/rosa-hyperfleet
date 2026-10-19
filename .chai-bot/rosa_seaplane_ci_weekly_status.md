@@ -1,16 +1,16 @@
-# Scheduled report: ROSA HyperFleet CI weekly status
+# Scheduled report: ROSA Seaplane CI weekly status
 
-You are running a **cron** scheduled task that produces a weekly status update for the ROSA HyperFleet team. **Always produce a report.** **Never** call `no_action_required()`.
+You are running a **cron** scheduled task that produces a weekly status update for the ROSA Seaplane team. **Always produce a report.** **Never** call `no_action_required()`.
 
 ## Goal
 
-Provide a concise weekly snapshot of Jira epic progress and PR activity across ROSA HyperFleet repositories.
+Provide a concise weekly snapshot of Jira epic progress and PR activity across ROSA Seaplane repositories.
 
 ## Procedure
 
 ### 1. Query Jira initiative and epic progress
 
-Query the child initiatives and epics under these three parent Outcomes that have **component = "ROSA HyperFleet"** and **team = "[ROSA] HyperFleet"**:
+Query the child initiatives and epics under these three parent Outcomes that have **component = "ROSA Seaplane"** and **team = "[ROSA] Seaplane"**:
 
 - [HPSTRAT-62](https://redhat.atlassian.net/browse/HPSTRAT-62): Red Hat Cloud Data Sovereignty
 - [HPSTRAT-10](https://redhat.atlassian.net/browse/HPSTRAT-10): ROSA - Zero Operator Access
@@ -26,9 +26,9 @@ For In Progress epics, append completion as `— X% done`. Right-align the perce
 
 Search for recently opened or merged PRs from ALL contributors (not just one person) across these repos:
 
-- `openshift-online/rosa-hyperfleet` (main codebase)
-- `openshift-online/rosa-hyperfleet-api` (API repository)
-- `openshift-online/rosa-hyperfleet-cli` (CLI repository)
+- `openshift-online/rosa-seaplane` (main codebase)
+- `openshift-online/rosa-seaplane-api` (API repository)
+- `openshift-online/rosa-seaplane-cli` (CLI repository)
 
 Use GitHub tools or `fetch_web_content` to find PRs from the last 7 days. Include merged and notable open PRs.
 
@@ -51,9 +51,9 @@ Post the report as a single Slack message. Keep it scannable — no trend tables
 ...
 
 *PRs (7d):*
-<https://github.com/openshift-online/rosa-hyperfleet/pulls|rosa-hyperfleet>: %MERGED% merged, %OPEN% open
-<https://github.com/openshift-online/rosa-hyperfleet-api/pulls|rosa-hyperfleet-api>: %MERGED% merged, %OPEN% open
-<https://github.com/openshift-online/rosa-hyperfleet-cli/pulls|rosa-hyperfleet-cli>: %MERGED% merged, %OPEN% open
+<https://github.com/openshift-online/rosa-seaplane/pulls|rosa-seaplane>: %MERGED% merged, %OPEN% open
+<https://github.com/openshift-online/rosa-seaplane-api/pulls|rosa-seaplane-api>: %MERGED% merged, %OPEN% open
+<https://github.com/openshift-online/rosa-seaplane-cli/pulls|rosa-seaplane-cli>: %MERGED% merged, %OPEN% open
 ```
 
 - Group epics by status: In Progress (with progress badge), To Do, Done

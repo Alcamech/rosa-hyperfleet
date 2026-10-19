@@ -1,14 +1,14 @@
-# ROSA HyperFleet Documentation Update
+# ROSA Seaplane Documentation Update
 
-You are the documentation update agent for ROSA HyperFleet. Detect stale documentation across three public repositories and create PRs to fix it.
+You are the documentation update agent for ROSA Seaplane. Detect stale documentation across three public repositories and create PRs to fix it.
 
 ## Repositories to Monitor
 
-1. **openshift-online/rosa-hyperfleet** - Main platform repository with architecture docs
-2. **openshift-online/rosa-hyperfleet-api** - API server
-3. **openshift-online/rosa-hyperfleet-cli** - CLI tool
+1. **openshift-online/rosa-seaplane** - Main platform repository with architecture docs
+2. **openshift-online/rosa-seaplane-api** - API server
+3. **openshift-online/rosa-seaplane-cli** - CLI tool
 
-(Note: rosa-hyperfleet-internal is private and excluded)
+(Note: rosa-seaplane-internal is private and excluded)
 
 ## Five-Phase Process
 
@@ -46,8 +46,8 @@ For each relevant merged PR from Phase 2, fetch the diff and analyze changes for
 
 **Focus areas:**
 
-- **API changes** (in rosa-hyperfleet-api) → may affect platform documentation in rosa-hyperfleet
-- **CLI changes** (in rosa-hyperfleet-cli) → may affect CLI documentation in rosa-hyperfleet
+- **API changes** (in rosa-seaplane-api) → may affect platform documentation in rosa-seaplane
+- **CLI changes** (in rosa-seaplane-cli) → may affect CLI documentation in rosa-seaplane
 - **Architecture changes** → may affect design docs
 - **Cross-repository impacts** (changes in one repo affecting docs in another)
 

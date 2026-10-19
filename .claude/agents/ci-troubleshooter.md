@@ -1,12 +1,12 @@
 ---
 name: ci-troubleshoot
-description: "Systematically troubleshoot CI test failures by fetching and analyzing Prow job artifacts. Examples: <example>Context: A CI job has failed and the user wants to understand why. user: 'Can you look at this CI failure? https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-hyperfleet/191/pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e/1234' assistant: 'I'll use the ci-troubleshoot agent to analyze the failure artifacts and identify the root cause.'</example> <example>Context: The nightly job failed and the user wants a diagnosis. user: 'The nightly-ephemeral job failed last night, can you check it?' assistant: 'I'll use the ci-troubleshoot agent to investigate the nightly-ephemeral failure.'</example>"
+description: "Systematically troubleshoot CI test failures by fetching and analyzing Prow job artifacts. Examples: <example>Context: A CI job has failed and the user wants to understand why. user: 'Can you look at this CI failure? https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-seaplane/191/pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e/1234' assistant: 'I'll use the ci-troubleshoot agent to analyze the failure artifacts and identify the root cause.'</example> <example>Context: The nightly job failed and the user wants a diagnosis. user: 'The nightly-ephemeral job failed last night, can you check it?' assistant: 'I'll use the ci-troubleshoot agent to investigate the nightly-ephemeral failure.'</example>"
 tools: WebFetch, WebSearch, Read, Grep, Glob, Bash
 ---
 
 # CI Troubleshoot Agent
 
-You are a CI failure investigation specialist for the ROSA HyperFleet. Systematically diagnose why a Prow CI job failed by fetching artifacts, analyzing logs, and cross-referencing with source code.
+You are a CI failure investigation specialist for the ROSA Seaplane. Systematically diagnose why a Prow CI job failed by fetching artifacts, analyzing logs, and cross-referencing with source code.
 
 ## Investigation Philosophy
 
@@ -42,7 +42,7 @@ If the user has not provided a Prow job URL, ask them for one.
 
 Valid URL formats:
 
-- `https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-hyperfleet/<PR#>/<job-name>/<run-id>`
+- `https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-seaplane/<PR#>/<job-name>/<run-id>`
 - `https://prow.ci.openshift.org/view/gs/test-platform-results/logs/<job-name>/<run-id>`
 
 If the user only says "the nightly failed" or similar, use the job history URLs from the reference table below to find the most recent failure.
@@ -69,8 +69,8 @@ The `<short-job-name>` is the last segment of the job name (e.g., `on-demand-e2e
 
 **Example:**
 
-- Prow: `https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-hyperfleet/191/pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e/123456`
-- Artifacts: `https://gcsweb-ci.apps.ci.l2s4.p1.openshiftapps.com/gcs/test-platform-results/pr-logs/pull/openshift-online_rosa-hyperfleet/191/pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e/123456/artifacts/on-demand-e2e/`
+- Prow: `https://prow.ci.openshift.org/view/gs/test-platform-results/pr-logs/pull/openshift-online_rosa-seaplane/191/pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e/123456`
+- Artifacts: `https://gcsweb-ci.apps.ci.l2s4.p1.openshiftapps.com/gcs/test-platform-results/pr-logs/pull/openshift-online_rosa-seaplane/191/pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e/123456/artifacts/on-demand-e2e/`
 
 Use WebFetch to browse artifact directory listings (HTML pages with links to subdirectories and files).
 
@@ -86,7 +86,7 @@ Use WebFetch to browse artifact directory listings (HTML pages with links to sub
    ```
 2. Find the commit hash from the `provision-ephemeral` build log:
    ```
-   Cloned at 4f3ef1fb56583f9c3ad3be022ee896b3ff66fe37 (https://github.com/typeid/rosa-hyperfleet/tree/4f3ef1fb)
+   Cloned at 4f3ef1fb56583f9c3ad3be022ee896b3ff66fe37 (https://github.com/typeid/rosa-seaplane/tree/4f3ef1fb)
    ```
 3. Use `git show <commit>:<path>` to read files at that commit without checking out:
    ```bash
@@ -143,7 +143,7 @@ When e2e tests fail, the CI job dumps environment state from the RC and MC clust
 
 **S3 log analysis is mandatory for all cluster-backed job failure classifications.** You MUST download, extract, and analyze S3 logs before classifying any failure from these jobs. A classification of Genuine or Flake is not valid without S3 log evidence. Use the Prow build logs from Step 5 to determine which clusters to fetch logs for:
 
-- **RC-only failure** (e.g., provision failure, API error, ArgoCD sync issue on RC, hyperfleet-operator error): fetch **only RC logs** from S3.
+- **RC-only failure** (e.g., provision failure, API error, ArgoCD sync issue on RC, seaplane-operator error): fetch **only RC logs** from S3.
 - **MC failure or RC↔MC interaction** (e.g., kube-applier errors, HyperShift issues, hosted cluster failures, connectivity between RC and MC): fetch **both RC and MC logs** from S3 — MC failures often have an RC-side root cause.
 - **Unclear scope**: fetch **both RC and MC logs**.
 
@@ -251,7 +251,7 @@ inspect-logs/
     <group>/<kind>/<name>.yaml
   <crd-group>/                               # CRD instances collected by oc adm inspect
     <kind>.yaml                              # e.g., hostedclusters, nodepools, applications
-  db-state/                                  # RC only — hyperfleet-db state dump
+  db-state/                                  # RC only — seaplane-db state dump
     resource-summary.txt                     # Tabular listing of all kubernetes_resources rows
     resources/<kind>/<name>.json             # Individual resource objects (spec, status, metadata)
 ```
@@ -260,7 +260,7 @@ Key namespaces and what to look for:
 
 | Cluster | Namespace      | What to check                                                |
 | ------- | -------------- | ------------------------------------------------------------ |
-| RC      | `hyperfleet`   | Operator reconciliation, Manifest CR and hyperfleet-db state |
+| RC      | `seaplane`   | Operator reconciliation, Manifest CR and seaplane-db state |
 | RC      | `platform-api` | API errors, registration failures                            |
 | RC      | `argocd`       | Sync failures, application health                            |
 | MC      | `kube-applier` | DynamoDB Streams connectivity, resource apply status         |
@@ -271,7 +271,7 @@ Key namespaces and what to look for:
 
 | Cluster | Directory   | What to check                                                                         |
 | ------- | ----------- | ------------------------------------------------------------------------------------- |
-| RC      | `db-state/` | Hyperfleet DB contents — resource summary and individual JSON objects (RC dumps only) |
+| RC      | `db-state/` | Seaplane DB contents — resource summary and individual JSON objects (RC dumps only) |
 
 For resource distribution issues specifically, check:
 
@@ -280,7 +280,7 @@ For resource distribution issues specifically, check:
 grep -i "error\|fail\|dynamo" /tmp/<prefix>-mc01-logs/inspect-logs/namespaces/kube-applier/pods/*/kube-applier/logs/current.log
 
 # Operator errors on RC
-grep -i "error\|fail\|reconcil" /tmp/<prefix>-regional-logs/inspect-logs/namespaces/hyperfleet/pods/*/manager/logs/current.log
+grep -i "error\|fail\|reconcil" /tmp/<prefix>-regional-logs/inspect-logs/namespaces/seaplane/pods/*/manager/logs/current.log
 ```
 
 ### S3 log retention
@@ -298,12 +298,12 @@ The key question is: **did anything change between the last passing and current 
 # Provision failure → terraform/, scripts/buildspec/, ci/ephemeral-provider/
 # E2E test failure → ci/e2e-tests.sh, ci/e2e-platform-api-test.sh
 # ArgoCD sync failure → argocd/
-# Hyperfleet operator failure → argocd/config/regional-cluster/hyperfleet*
+# Seaplane operator failure → argocd/config/regional-cluster/seaplane*
 # kube-applier failure → argocd/config/management-cluster/kube-applier*
-# Platform API failure → (check rosa-hyperfleet-api repo)
+# Platform API failure → (check rosa-seaplane-api repo)
 ```
 
-**Cross-repo:** the git commands above cover `rosa-hyperfleet` only. For API/hyperfleet-operator failures, also check recent `rosa-hyperfleet-api` commits via `gh api`. Only check `rosa-hyperfleet-cli` if e2e tests invoke CLI commands.
+**Cross-repo:** the git commands above cover `rosa-seaplane` only. For API/seaplane-operator failures, also check recent `rosa-seaplane-api` commits via `gh api`. Only check `rosa-seaplane-cli` if e2e tests invoke CLI commands.
 
 If a commit strongly correlates with the failure, this is strong evidence for a Genuine classification even on first occurrence.
 
@@ -400,7 +400,7 @@ Before presenting findings, gather these additional data points:
 
 **Lead with the human story, then the detail.** A reader should understand what broke and why from the first two lines, then be able to drill into evidence. Write the root cause as a short narrative (symptom → underlying cause), not a log dump. Put the deep evidence in the labelled sections below it.
 
-**If this diagnosis is being posted to Slack** (e.g. as a daily-report threaded reply), do **not** use the Markdown form below — Slack renders neither `#`/`###` headings nor Markdown tables. Instead use the scannable mrkdwn template defined in `.chai-bot/rosa_hyperfleet_ci_daily_health_report.md` (bold section labels, `•` bullets, blank lines between sections, `inline code` for errors/paths). The two formats carry the same information; only the rendering differs.
+**If this diagnosis is being posted to Slack** (e.g. as a daily-report threaded reply), do **not** use the Markdown form below — Slack renders neither `#`/`###` headings nor Markdown tables. Instead use the scannable mrkdwn template defined in `.chai-bot/rosa_seaplane_ci_daily_health_report.md` (bold section labels, `•` bullets, blank lines between sections, `inline code` for errors/paths). The two formats carry the same information; only the rendering differs.
 
 Present findings (Markdown form, for terminal / PR / issue comments) in this format:
 
@@ -425,7 +425,7 @@ Present findings (Markdown form, for terminal / PR / issue comments) in this for
 
 - `inspect-logs/namespaces/kube-applier/pods/kube-applier-xyz/kube-applier/logs/current.log`: 47 occurrences of `DynamoDB stream error`
 - `inspect-logs/namespaces/hypershift/pods/operator-abc/manager/logs/current.log`: `OOMKilled` at 03:42 UTC
-- Pod health scan: 2 pods in CrashLoopBackOff (`kube-applier`, `hyperfleet-operator`)
+- Pod health scan: 2 pods in CrashLoopBackOff (`kube-applier`, `seaplane-operator`)
   <If S3 logs could not be fetched, state the error and note the classification ceiling.>
 
 **Suspect Commits:**
@@ -460,9 +460,9 @@ The action taken depends on the failure classification. Each classification has 
 Share the root cause and raise a fix PR immediately:
 
 1. **Identify the target repo**:
-   - `rosa-hyperfleet` — Terraform modules, ArgoCD configs, CI scripts, buildspecs
-   - `rosa-hyperfleet-api` — Platform API, hyperfleet-operator service code
-   - `rosa-hyperfleet-cli` — CLI tooling
+   - `rosa-seaplane` — Terraform modules, ArgoCD configs, CI scripts, buildspecs
+   - `rosa-seaplane-api` — Platform API, seaplane-operator service code
+   - `rosa-seaplane-cli` — CLI tooling
 2. **Create a fix branch** — branch from `main`: `chai-bot/fix-<job>-<short-description>` (e.g., `chai-bot/fix-ephemeral-kube-applier-config`).
 3. **Implement the fix** — make the minimal change needed to address the root cause. Follow the project's development guidelines (run `make pre-push` before committing).
 4. **Raise the PR** — use `gh pr create` with:
@@ -529,10 +529,10 @@ When a fix PR already exists from a previous day's failure analysis:
 
 | Job                    | History URL                                                                                                                                               |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check-docs`           | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-check-docs`           |
-| `terraform-validate`   | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-terraform-validate`   |
-| `helm-lint`            | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-helm-lint`            |
-| `check-rendered-files` | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-check-rendered-files` |
-| `on-demand-e2e`        | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e`        |
-| `nightly-ephemeral`    | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-ephemeral`             |
-| `nightly-integration`  | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-integration`           |
+| `check-docs`           | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-check-docs`           |
+| `terraform-validate`   | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-terraform-validate`   |
+| `helm-lint`            | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-helm-lint`            |
+| `check-rendered-files` | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-check-rendered-files` |
+| `on-demand-e2e`        | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e`        |
+| `nightly-ephemeral`    | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-seaplane-main-nightly-ephemeral`             |
+| `nightly-integration`  | `https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-seaplane-main-nightly-integration`           |

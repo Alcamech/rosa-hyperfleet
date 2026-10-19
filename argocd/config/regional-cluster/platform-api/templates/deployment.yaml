@@ -57,8 +57,8 @@ spec:
             - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.platformApi.hyperfleetdb.secretName | default "hyperfleet-db-dsn" }}
-                  key: {{ .Values.platformApi.hyperfleetdb.secretKey | default "dsn" }}
+                  name: {{ .Values.platformApi.seaplanedb.secretName | default "seaplane-db-dsn" }}
+                  key: {{ .Values.platformApi.seaplanedb.secretKey | default "dsn" }}
             {{- if .Values.platformApi.rateLimit.enabled }}
             - name: RATE_LIMIT_ENABLED
               value: "true"

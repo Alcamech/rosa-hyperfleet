@@ -1,4 +1,4 @@
-# ROSA Hyperfleet (v2): Platform API Rate Limiting
+# ROSA Seaplane (v2): Platform API Rate Limiting
 
 **Last Updated Date**: 2026-06-25
 
@@ -7,7 +7,7 @@
 - [Summary](#summary)
 - [Context](#context)
 - [Current Implementation — ROSA HCP (v1): Envoy + Limitador](#current-implementation--rosa-hcp-v1-envoy--limitador)
-- [Alternatives Considered for ROSA Hyperfleet (v2)](#alternatives-considered-for-rosa-hyperfleet-v2)
+- [Alternatives Considered for ROSA Seaplane (v2)](#alternatives-considered-for-rosa-seaplane-v2)
   - [1. AWS WAF Rate-Based Rules](#1-aws-waf-rate-based-rules)
   - [2. API Gateway Route-Level Throttling](#2-api-gateway-route-level-throttling)
   - [3. Usage Plans + API Keys](#3-usage-plans--api-keys)
@@ -24,11 +24,11 @@
 
 ## Summary
 
-This document captures the current ROSA HCP (v1) rate limiting implementation (Envoy sidecar + Limitador) and evaluates alternatives for ROSA Hyperfleet (v2), where the API is served through AWS API Gateway with SigV4 authentication. The recommended approach is an in-app rate limiter using `go-redis/redis_rate` with shared Redis counters, complemented by API Gateway's existing route-level throttling.
+This document captures the current ROSA HCP (v1) rate limiting implementation (Envoy sidecar + Limitador) and evaluates alternatives for ROSA Seaplane (v2), where the API is served through AWS API Gateway with SigV4 authentication. The recommended approach is an in-app rate limiter using `go-redis/redis_rate` with shared Redis counters, complemented by API Gateway's existing route-level throttling.
 
 ## Context
 
-- **Problem Statement**: ROSA HCP (v1) uses Envoy sidecars with Limitador (backed by Redis/ElastiCache) for per-endpoint, per-customer rate limiting. ROSA Hyperfleet (v2) replaces the Envoy-based ingress with AWS API Gateway using SigV4 authentication. We need an equivalent rate limiting strategy that provides per-customer, per-endpoint granularity.
+- **Problem Statement**: ROSA HCP (v1) uses Envoy sidecars with Limitador (backed by Redis/ElastiCache) for per-endpoint, per-customer rate limiting. ROSA Seaplane (v2) replaces the Envoy-based ingress with AWS API Gateway using SigV4 authentication. We need an equivalent rate limiting strategy that provides per-customer, per-endpoint granularity.
 - **Constraints**:
   - Authentication is SigV4 (AWS IAM) — no API keys in the current flow
   - Hundreds of customers with uncontrolled concurrency
@@ -147,13 +147,13 @@ Based on 24-hour production Grafana dashboards ([ROSA HCP v1 Rate Limiting dashb
 | Timeouts                            | Negligible                                      |
 | `failure_mode_allowed` events       | Rare (occasional spikes to 1)                   |
 
-In ROSA Hyperfleet (v2), the Platform API consolidates what today is spread across multiple OCM services (`accounts_mgmt`, `clusters_mgmt`, `service_logs`, addons, etc.). The relevant baseline is the **aggregate ~200+ req/s**, not just the `clusters_mgmt` portion — since the Platform API will handle both customer-facing and internal traffic.
+In ROSA Seaplane (v2), the Platform API consolidates what today is spread across multiple OCM services (`accounts_mgmt`, `clusters_mgmt`, `service_logs`, addons, etc.). The relevant baseline is the **aggregate ~200+ req/s**, not just the `clusters_mgmt` portion — since the Platform API will handle both customer-facing and internal traffic.
 
 That said, ~200 req/s is still low. The ROSA HCP (v1) rate limiting stack (3 Limitador replicas, ElastiCache Redis, Envoy sidecars on every pod, gRPC protocol) is significantly over-provisioned for this workload.
 
 **Note:** The architecture may split into two separate ingress paths — a **public API Gateway** for customer traffic and a **private API Gateway/ALB** for internal service-to-service traffic. In that case, rate limiting rules would differ: the public gateway would enforce per-customer limits, while the internal gateway could use more permissive limits or skip rate limiting entirely (since internal callers are trusted and controlled).
 
-## Alternatives Considered for ROSA Hyperfleet (v2)
+## Alternatives Considered for ROSA Seaplane (v2)
 
 ### 1. AWS WAF Rate-Based Rules
 
@@ -188,7 +188,7 @@ API Gateway has built-in token bucket throttling at stage and method/resource le
 - **Global, not per-caller** — a 50 RPS limit is shared across all customers; one noisy caller can starve others
 - Changing limits requires redeploying the API Gateway stage (a Terraform apply). Note: "stage" here is an API Gateway concept (a named deployment like `prod` or `staging`), not an environment restriction — throttling works in all environments including production.
 
-**Existing implementation:** The Hyperfleet API Gateway module already has stage-level throttling configured:
+**Existing implementation:** The Seaplane API Gateway module already has stage-level throttling configured:
 
 ```hcl
 # terraform/modules/api-gateway/main.tf
@@ -360,7 +360,7 @@ These headers are **injected by API Gateway** after SigV4 validation — they ca
 
 The in-app approach with SigV4 identity is an **upgrade** over ROSA HCP (v1)'s Envoy + Limitador:
 
-| Aspect            | ROSA HCP v1 (Envoy + Limitador)                                        | ROSA Hyperfleet v2 (In-app + API GW throttle)                           |
+| Aspect            | ROSA HCP v1 (Envoy + Limitador)                                        | ROSA Seaplane v2 (In-app + API GW throttle)                           |
 | ----------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Customer identity | Source IP (`X-Forwarded-For`) — unreliable                             | AWS Account ID (SigV4) — trusted, unique                                |
 | Infrastructure    | Envoy sidecar + Limitador (3 replicas) + Redis (2 nodes, HA)           | In-process + small Redis for shared counters (no sidecar, no gRPC)      |

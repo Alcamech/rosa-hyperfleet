@@ -10,7 +10,7 @@ aws:
   # Stage children are minted by the internal repo, which provisions the scoped
   # day-2 role instead of the AWS Organizations role. Pipelines assume this for
   # both state-bucket bootstrap (hop 1) and infra apply (hop 2).
-  child_admin_role_name: "rosa-hyperfleet-account-admin"
+  child_admin_role_name: "rosa-seaplane-account-admin"
 
 dns:
   domain: stg0.rosa.devshift.org
@@ -42,10 +42,10 @@ regional_cluster:
   sre_allowed_source_cidrs: []
   enable_sre_oidc_auth: true
   sre_oidc_issuer_url: "https://auth.redhat.com/auth/realms/EmployeeIDP"
-  sre_grafana_oidc_client_id: "rosa-hyperfleet-grafana-sre-stage-us-east-1"
-  sre_argocd_oidc_client_id: "rosa-hyperfleet-argocd-sre-stage-us-east-1"
-  sre_prometheus_oidc_client_id: "rosa-hyperfleet-prometheus-sre-stage-us-east-1"
-  sre_thanos_oidc_client_id: "rosa-hyperfleet-thanos-sre-stage-us-east-1"
+  sre_grafana_oidc_client_id: "rosa-seaplane-grafana-sre-stage-us-east-1"
+  sre_argocd_oidc_client_id: "rosa-seaplane-argocd-sre-stage-us-east-1"
+  sre_prometheus_oidc_client_id: "rosa-seaplane-prometheus-sre-stage-us-east-1"
+  sre_thanos_oidc_client_id: "rosa-seaplane-thanos-sre-stage-us-east-1"
 
 cluster_lifecycle:
   default_expiration: "24h"

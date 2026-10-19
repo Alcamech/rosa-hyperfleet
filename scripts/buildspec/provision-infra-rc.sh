@@ -75,7 +75,7 @@ fi
 export TF_VAR_container_image="${PLATFORM_IMAGE}"
 
 export TF_VAR_enable_bastion="${ENABLE_BASTION}"
-export TF_VAR_hyperfleet_db_deletion_protection=$(parseBool '.hyperfleet_db_deletion_protection' true "$DEPLOY_CONFIG_FILE")
+export TF_VAR_seaplane_db_deletion_protection=$(parseBool '.seaplane_db_deletion_protection' true "$DEPLOY_CONFIG_FILE")
 export TF_VAR_enable_cloudtrail=$(parseBool '.enable_cloudtrail' false "$DEPLOY_CONFIG_FILE")
 export TF_VAR_enable_api_custom_domain=$(parseBool '.enable_api_custom_domain' false "$DEPLOY_CONFIG_FILE")
 export TF_VAR_zone_shard_count=$(jq -r '.zone_shard_count // 1' "$DEPLOY_CONFIG_FILE")
@@ -151,7 +151,7 @@ fi
 
 if [ -z "${TF_VAR_mc_ou_path}" ]; then
     echo "ERROR: SSM parameter not found at either /infra/${ENVIRONMENT}/${TARGET_REGION}/ou-path or /infra/region-ou-path in account ${TARGET_ACCOUNT_ID} region ${TARGET_REGION}" >&2
-    echo "For stage: parameter is created by rosa-hyperfleet-internal/infra/modules/account-config" >&2
+    echo "For stage: parameter is created by rosa-seaplane-internal/infra/modules/account-config" >&2
     echo "For ephemeral/integration: manually create at /infra/region-ou-path (legacy) or /infra/${ENVIRONMENT}/${TARGET_REGION}/ou-path (new)" >&2
     exit 1
 fi

@@ -1,23 +1,23 @@
 # Konflux onboarding guide
 
-Team reference for onboarding HyperFleet container images to Konflux and keeping new builds on the Konflux path.
+Team reference for onboarding Seaplane container images to Konflux and keeping new builds on the Konflux path.
 
 > **Audience:** This file is in a **public** GitHub repo. It contains no secrets or customer data. Some linked resources require Red Hat access: `gitlab.cee.redhat.com`, the Konflux UI, and the internal Google design doc below.
 
-## Konflux environment (HyperFleet)
+## Konflux environment (Seaplane)
 
 | Setting                     | Value                                                          |
 | --------------------------- | -------------------------------------------------------------- |
 | Konflux cluster             | `kflux-prd-rh02`                                               |
 | Tenant namespace            | `rosa-tenant`                                                  |
 | Quay path prefix            | `quay.io/redhat-user-workloads/rosa-tenant/`                   |
-| Required PR check (example) | `Konflux kflux-prd-rh02 / rosa-hyperfleet-api-on-pull-request` |
+| Required PR check (example) | `Konflux kflux-prd-rh02 / rosa-seaplane-api-on-pull-request` |
 
 **Links**
 
-- [Konflux UI — `rosa-hyperfleet` application](https://konflux-ui.apps.kflux-prd-rh02.0fk9.p1.openshiftapps.com/ns/rosa-tenant/applications/rosa-hyperfleet/activity)
+- [Konflux UI — `rosa-seaplane` application](https://konflux-ui.apps.kflux-prd-rh02.0fk9.p1.openshiftapps.com/ns/rosa-tenant/applications/rosa-seaplane/activity)
 - [Konflux UI — all `rosa-tenant` applications](https://konflux-ui.apps.kflux-prd-rh02.0fk9.p1.openshiftapps.com/ns/rosa-tenant/applications)
-- [HyperFleet Konflux design doc](https://docs.google.com/document/d/1KVGj_3lyGghVzm94G5iskIIkHkZyabvHTRue1DCwF-c/edit?tab=t.0#heading=h.o40dh15jzkv7)
+- [Seaplane Konflux design doc](https://docs.google.com/document/d/1KVGj_3lyGghVzm94G5iskIIkHkZyabvHTRue1DCwF-c/edit?tab=t.0#heading=h.o40dh15jzkv7)
 - [`konflux-release-data` overlays for `rosa-tenant`](https://gitlab.cee.redhat.com/releng/konflux-release-data/-/tree/main/tenants-config/cluster/kflux-prd-rh02/tenants/rosa-tenant/overlay?ref_type=heads)
 
 ## Goals
@@ -26,7 +26,7 @@ Team reference for onboarding HyperFleet container images to Konflux and keeping
 - **Prow** keeps lint, unit, integration, and e2e orchestration (Hypershift-style hybrid — do not remove Prow image jobs until deliberately cut over).
 - **GitOps** (this repo's Helm values) pins `quay.io/redhat-user-workloads/rosa-tenant/<image>:<sha>`.
 
-Repo-specific Quay tag conventions for `platform-api` and `hyperfleet-operator`: [rosa-hyperfleet-api `docs/konflux/quay-image-tags.md`](https://github.com/openshift-online/rosa-hyperfleet-api/blob/main/docs/konflux/quay-image-tags.md).
+Repo-specific Quay tag conventions for `platform-api` and `seaplane-operator`: [rosa-seaplane-api `docs/konflux/quay-image-tags.md`](https://github.com/openshift-online/rosa-seaplane-api/blob/main/docs/konflux/quay-image-tags.md).
 
 ## Onboarding checklist (per component)
 
@@ -38,7 +38,7 @@ Copy this checklist for each new image. **Onboarded** means steps 1–5 are comp
 | 2   | Add build pipelines                                | App repo `.tekton/*-on-pull-request.yaml` + `*-on-push.yaml`                                                                                                                                                                             | PR merged (Konflux bootstrap PR or hand-copied from a reference repo)                       |
 | 3   | Wire CI gates                                      | [`openshift/release`](https://github.com/openshift/release) branch protection + ci-operator if needed                                                                                                                                    | Required Konflux on-PR context(s) added for the component; see branch-protection note below |
 | 4   | Validate builds                                    | Konflux UI / GitHub checks                                                                                                                                                                                                               | Green `*-on-pull-request` on a test PR and green `*-on-push` on `main`                      |
-| 5   | Point consumers at Konflux image                   | `rosa-hyperfleet` ArgoCD values (or other deploy repo)                                                                                                                                                                                   | `repository` + `tag: "<full-sha>"` under `redhat-user-workloads/rosa-tenant/…`              |
+| 5   | Point consumers at Konflux image                   | `rosa-seaplane` ArgoCD values (or other deploy repo)                                                                                                                                                                                   | `repository` + `tag: "<full-sha>"` under `redhat-user-workloads/rosa-tenant/…`              |
 
 **Rule for new work:** any new container image that ships to staging or production must complete steps 1–3 before merge and steps 4–5 before release. Do not use ad-hoc personal Quay repos for runtime images.
 
@@ -46,12 +46,12 @@ Copy this checklist for each new image. **Onboarded** means steps 1–5 are comp
 
 ### Reference implementation
 
-Use [`rosa-hyperfleet-api`](https://github.com/openshift-online/rosa-hyperfleet-api) as the template for step 2:
+Use [`rosa-seaplane-api`](https://github.com/openshift-online/rosa-seaplane-api) as the template for step 2:
 
-- `platform-api` — `.tekton/rosa-hyperfleet-api-*.yaml`
-- `hyperfleet-operator` — `.tekton/rosa-hyperfleet-operator-*.yaml`
+- `platform-api` — `.tekton/rosa-seaplane-api-*.yaml`
+- `seaplane-operator` — `.tekton/rosa-seaplane-operator-*.yaml`
 
-For step 1, copy an existing overlay (for example `rosa-boundary` or `rosa-hyperfleet-api` under `rosa-tenant`) and adjust:
+For step 1, copy an existing overlay (for example `rosa-boundary` or `rosa-seaplane-api` under `rosa-tenant`) and adjust:
 
 - `application-patch.yaml` — Application name
 - `component-patch.yaml` — Component name, git URL, branch, `spec.build-nudges-ref` if needed
@@ -63,8 +63,8 @@ Run `build-manifests.sh` in `konflux-release-data/tenants-config` before opening
 
 | Case                                                                   | Application                 | Component          | Repo change                      |
 | ---------------------------------------------------------------------- | --------------------------- | ------------------ | -------------------------------- |
-| New image in an existing repo (like operator in `rosa-hyperfleet-api`) | Reuse `rosa-hyperfleet`     | New component name | Add `.tekton/<component>-*.yaml` |
-| New standalone repo (like `rosa-hyperfleet-zoa`)                       | New or existing application | New component      | Full `.tekton/` + release config |
+| New image in an existing repo (like operator in `rosa-seaplane-api`) | Reuse `rosa-seaplane`     | New component name | Add `.tekton/<component>-*.yaml` |
+| New standalone repo (like `rosa-seaplane-zoa`)                       | New or existing application | New component      | Full `.tekton/` + release config |
 
 ## Prow and Konflux responsibilities
 
@@ -79,7 +79,7 @@ Konflux can only attest images **it** built. Released images must come from Konf
 
 ## Dependency PRs (MintMaker)
 
-Each onboarded app repo uses a root `renovate.json` for MintMaker (see [`rosa-hyperfleet-api`](https://github.com/openshift-online/rosa-hyperfleet-api/blob/main/renovate.json) for an example):
+Each onboarded app repo uses a root `renovate.json` for MintMaker (see [`rosa-seaplane-api`](https://github.com/openshift-online/rosa-seaplane-api/blob/main/renovate.json) for an example):
 
 - **gomod**, **dockerfile**, **tekton** managers enabled
 - Patch/minor/digest updates: automerge when Prow + Konflux pass
@@ -106,7 +106,7 @@ Tags expire after **5 days**. To test a `platform-api` change in an ephemeral RC
 2. Pin ephemeral config to `:on-pr-<sha>` (see [development environment](development-environment.md))
 3. Run ephemeral resync
 
-Post-merge pins use the plain `<sha>` tag — see [quay-image-tags.md](https://github.com/openshift-online/rosa-hyperfleet-api/blob/main/docs/konflux/quay-image-tags.md) in `rosa-hyperfleet-api`.
+Post-merge pins use the plain `<sha>` tag — see [quay-image-tags.md](https://github.com/openshift-online/rosa-seaplane-api/blob/main/docs/konflux/quay-image-tags.md) in `rosa-seaplane-api`.
 
 ## Troubleshooting
 
@@ -123,5 +123,5 @@ Post-merge pins use the plain `<sha>` tag — see [quay-image-tags.md](https://g
 - [Konflux: onboarding from GitHub](https://konflux-ci.dev/docs/building/creating-github/)
 - [Konflux: running / retriggering pipelines](https://konflux-ci.dev/docs/building/running/) (`/retest`, `/ok-to-test`)
 - [MintMaker user guide](https://konflux-ci.dev/docs/mintmaker/user/)
-- [Create tenant namespace](https://konflux.pages.redhat.com/docs/users/getting-started/create-tenant-namespace.html) (HyperFleet reuses `rosa-tenant` — new tenants rarely needed)
-- [HyperFleet Konflux design doc](https://docs.google.com/document/d/1KVGj_3lyGghVzm94G5iskIIkHkZyabvHTRue1DCwF-c/edit?tab=t.0#heading=h.o40dh15jzkv7)
+- [Create tenant namespace](https://konflux.pages.redhat.com/docs/users/getting-started/create-tenant-namespace.html) (Seaplane reuses `rosa-tenant` — new tenants rarely needed)
+- [Seaplane Konflux design doc](https://docs.google.com/document/d/1KVGj_3lyGghVzm94G5iskIIkHkZyabvHTRue1DCwF-c/edit?tab=t.0#heading=h.o40dh15jzkv7)

@@ -64,7 +64,7 @@ Install [ZeroOmega](https://chromewebstore.google.com/detail/proxy-switchyomega-
 from the Chrome Web Store.
 
 1. Open the ZeroOmega options panel.
-2. Create a new proxy profile named **hyperfleet-sre**:
+2. Create a new proxy profile named **seaplane-sre**:
    - Protocol: `HTTP`
    - Server: `squid.corp.redhat.com`
    - Port: `3128`
@@ -72,11 +72,11 @@ from the Chrome Web Store.
    - **Integration:**
      - Condition type: `Host wildcard`
      - Condition details: `*.sre.us-east-1.int0.rosa.devshift.net`
-     - Profile: `hyperfleet-sre`
+     - Profile: `seaplane-sre`
    - **Stage:**
      - Condition type: `Host wildcard`
      - Condition details: `*.sre.us-east-1.stg0.rosa.devshift.org`
-     - Profile: `hyperfleet-sre`
+     - Profile: `seaplane-sre`
 4. Click **Apply changes** and activate the **Auto Switch** profile.
 
 ### Firefox — FoxyProxy
@@ -85,7 +85,7 @@ Install [FoxyProxy](https://addons.mozilla.org/firefox/addon/foxyproxy-standard/
 
 1. Open FoxyProxy options → **Proxies** → **Add**.
 2. Configure the proxy:
-   - Title: `hyperfleet-sre`
+   - Title: `seaplane-sre`
    - Type: `HTTP`
    - Hostname: `squid.corp.redhat.com`
    - Port: `3128`

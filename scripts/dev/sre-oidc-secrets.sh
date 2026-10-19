@@ -141,7 +141,7 @@ for svc in $SERVICES_LIST; do
     echo ""
     echo "==> ${svc} OIDC client secret"
     echo "    Secret ID: ${secret_id}"
-    echo "    RH SSO client: rosa-hyperfleet-${svc}-sre-<env>-${REGION}"
+    echo "    RH SSO client: rosa-seaplane-${svc}-sre-<env>-${REGION}"
     echo ""
     read -rs -p "    Paste the OIDC client secret (input hidden): " secret_value
     echo ""

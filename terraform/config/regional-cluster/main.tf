@@ -68,14 +68,14 @@ locals {
 
   # Dedicated read-only Postgres role for ZOA IAM auth. The master user cannot
   # be reused: granting it rds_iam would disable its password auth, which the
-  # hyperfleet-operator and platform-api depend on. This role is provisioned by
+  # seaplane-operator and platform-api depend on. This role is provisioned by
   # the ECS bootstrap task (see module.ecs_bootstrap).
   zoa_db_reader_username = "zoa_ro"
 
   # RDS IAM authentication resource ARN for the ZOA Lambda read role.
   # Format: arn:aws:rds-db:region:account:dbuser:cluster-resource-id/username
   # Allows the zoa_aws_read role to connect as the zoa_ro role via IAM auth.
-  hyperfleet_db_iam_arn = "arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${module.hyperfleet_db.cluster_resource_id}/${local.zoa_db_reader_username}"
+  seaplane_db_iam_arn = "arn:aws:rds-db:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:dbuser:${module.seaplane_db.cluster_resource_id}/${local.zoa_db_reader_username}"
 }
 
 # =============================================================================
@@ -152,7 +152,7 @@ resource "aws_iam_role_policy" "eso_secretsmanager" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ]
-        Resource = module.hyperfleet_db.kms_key_arn
+        Resource = module.seaplane_db.kms_key_arn
       }
     ]
   })
@@ -241,14 +241,14 @@ module "ecs_bootstrap" {
   redis_endpoint    = var.enable_rate_limit_redis ? "${module.elasticache_valkey[0].endpoint}:${module.elasticache_valkey[0].port}" : ""
 
   # ZOA read-only IAM DB role provisioning (runs psql during bootstrap).
-  # The RC always has hyperfleet-db, so enable it unconditionally here. This
+  # The RC always has seaplane-db, so enable it unconditionally here. This
   # flag is known at plan time and drives the bootstrap IAM policy's count;
   # the DSN secret ARN below is unknown until apply on a greenfield build.
-  enable_zoa_db_bootstrap       = true
-  hyperfleet_db_dsn_secret_arn  = module.hyperfleet_db.dsn_secret_arn
-  hyperfleet_db_kms_key_arn     = module.hyperfleet_db.kms_key_arn
-  hyperfleet_db_name            = module.hyperfleet_db.database_name
-  hyperfleet_db_reader_username = local.zoa_db_reader_username
+  enable_zoa_db_bootstrap     = true
+  seaplane_db_dsn_secret_arn  = module.seaplane_db.dsn_secret_arn
+  seaplane_db_kms_key_arn     = module.seaplane_db.kms_key_arn
+  seaplane_db_name            = module.seaplane_db.database_name
+  seaplane_db_reader_username = local.zoa_db_reader_username
 }
 
 # =============================================================================
@@ -399,7 +399,7 @@ resource "aws_route53_record" "regional_delegation" {
 #
 # Each shard is a separate Route53 HostedZone under the regional zone,
 # providing ~10k records per shard. MC operators (external-dns, cert-manager)
-# create cluster records in shards. hyperfleet-operator assigns clusters to shards.
+# create cluster records in shards. seaplane-operator assigns clusters to shards.
 # =============================================================================
 
 resource "aws_route53_zone" "zone_shard" {
@@ -507,40 +507,40 @@ module "zoa_lambda" {
   kms_key_arn          = module.zoa.kms_key_arn
   uploader_role_arn    = module.zoa.uploader_role_arn
 
-  hyperfleet_db_resource_arn = local.hyperfleet_db_iam_arn
+  seaplane_db_resource_arn = local.seaplane_db_iam_arn
   # RDS endpoint output is the hostname only; append the port so the value is
   # host:port as required by RDS IAM auth token generation (BuildAuthToken).
-  hyperfleet_db_endpoint = "${module.hyperfleet_db.endpoint}:${module.hyperfleet_db.port}"
-  hyperfleet_db_name     = module.hyperfleet_db.database_name
+  seaplane_db_endpoint = "${module.seaplane_db.endpoint}:${module.seaplane_db.port}"
+  seaplane_db_name     = module.seaplane_db.database_name
   # Connect as the dedicated read-only IAM role, not the master user.
-  hyperfleet_db_username = local.zoa_db_reader_username
+  seaplane_db_username = local.zoa_db_reader_username
 }
 
 # =============================================================================
-# HyperFleet DB (PostgreSQL)
+# Seaplane DB (PostgreSQL)
 #
 # Replaces fleet-db (workerless EKS). Multi-AZ PostgreSQL instance storing
-# hyperfleet CRs in a single `resources` table with jsonb spec/status.
+# seaplane CRs in a single `resources` table with jsonb spec/status.
 # The DSN is written to Secrets Manager for ESO to sync into the
-# hyperfleet-db-dsn Kubernetes Secret consumed by the operator and platform-api.
+# seaplane-db-dsn Kubernetes Secret consumed by the operator and platform-api.
 # =============================================================================
 
-module "hyperfleet_db" {
-  source = "../../modules/hyperfleet-db"
+module "seaplane_db" {
+  source = "../../modules/seaplane-db"
 
   cluster_id         = var.regional_id
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
   vpc_cidr           = module.vpc.vpc_cidr
 
-  instance_class = var.hyperfleet_db_instance_class
-  engine_version = var.hyperfleet_db_engine_version
+  instance_class = var.seaplane_db_instance_class
+  engine_version = var.seaplane_db_engine_version
 
-  backup_retention_period      = var.hyperfleet_db_backup_retention_period
-  deletion_protection          = var.hyperfleet_db_deletion_protection
-  skip_final_snapshot          = var.hyperfleet_db_skip_final_snapshot
-  performance_insights_enabled = var.hyperfleet_db_performance_insights_enabled
-  monitoring_interval          = var.hyperfleet_db_monitoring_interval
+  backup_retention_period      = var.seaplane_db_backup_retention_period
+  deletion_protection          = var.seaplane_db_deletion_protection
+  skip_final_snapshot          = var.seaplane_db_skip_final_snapshot
+  performance_insights_enabled = var.seaplane_db_performance_insights_enabled
+  monitoring_interval          = var.seaplane_db_monitoring_interval
 }
 
 # =============================================================================
@@ -563,16 +563,16 @@ module "elasticache_valkey" {
 }
 
 # =============================================================================
-# Hyperfleet Operator IAM (Pod Identity)
+# Seaplane Operator IAM (Pod Identity)
 #
-# The hyperfleet-operator runs on the RC, reads/writes CRs in hyperfleet-db
+# The seaplane-operator runs on the RC, reads/writes CRs in seaplane-db
 # (Postgres via DSN from Secrets Manager), and writes/reads DynamoDB
 # desire tables for MC communication.
 # =============================================================================
 
-resource "aws_iam_role" "hyperfleet_operator" {
-  name        = "${var.regional_id}-hyperfleet-operator"
-  description = "IAM role for hyperfleet-operator with DynamoDB access"
+resource "aws_iam_role" "seaplane_operator" {
+  name        = "${var.regional_id}-seaplane-operator"
+  description = "IAM role for seaplane-operator with DynamoDB access"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -589,23 +589,23 @@ resource "aws_iam_role" "hyperfleet_operator" {
   })
 
   tags = {
-    Name      = "${var.regional_id}-hyperfleet-operator-role"
-    Component = "hyperfleet-operator"
+    Name      = "${var.regional_id}-seaplane-operator-role"
+    Component = "seaplane-operator"
     function  = "messaging"
     module    = "regional-cluster"
     ManagedBy = "terraform"
   }
 }
 
-resource "aws_eks_pod_identity_association" "hyperfleet_operator" {
+resource "aws_eks_pod_identity_association" "seaplane_operator" {
   cluster_name    = module.regional_cluster.cluster_name
-  namespace       = "hyperfleet"
-  service_account = "hyperfleet-operator"
-  role_arn        = aws_iam_role.hyperfleet_operator.arn
+  namespace       = "seaplane"
+  service_account = "seaplane-operator"
+  role_arn        = aws_iam_role.seaplane_operator.arn
 
   tags = {
-    Name      = "${var.regional_id}-hyperfleet-operator-pod-identity"
-    Component = "hyperfleet-operator"
+    Name      = "${var.regional_id}-seaplane-operator-pod-identity"
+    Component = "seaplane-operator"
     function  = "messaging"
     module    = "regional-cluster"
     ManagedBy = "terraform"
@@ -613,9 +613,9 @@ resource "aws_eks_pod_identity_association" "hyperfleet_operator" {
 }
 
 # S3 and KMS access for OIDC infrastructure management
-resource "aws_iam_role_policy" "hyperfleet_operator_oidc" {
-  name = "${var.regional_id}-hyperfleet-operator-oidc"
-  role = aws_iam_role.hyperfleet_operator.id
+resource "aws_iam_role_policy" "seaplane_operator_oidc" {
+  name = "${var.regional_id}-seaplane-operator-oidc"
+  role = aws_iam_role.seaplane_operator.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -651,9 +651,9 @@ resource "aws_iam_role_policy" "hyperfleet_operator_oidc" {
 }
 
 # Secrets Manager access for OIDC private key storage
-resource "aws_iam_role_policy" "hyperfleet_operator_secrets" {
-  name = "${var.regional_id}-hyperfleet-operator-secrets"
-  role = aws_iam_role.hyperfleet_operator.id
+resource "aws_iam_role_policy" "seaplane_operator_secrets" {
+  name = "${var.regional_id}-seaplane-operator-secrets"
+  role = aws_iam_role.seaplane_operator.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -668,16 +668,16 @@ resource "aws_iam_role_policy" "hyperfleet_operator_secrets" {
           "secretsmanager:DescribeSecret",
           "secretsmanager:DeleteSecret",
         ]
-        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:/hyperfleet/oidc/*"
+        Resource = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:/seaplane/oidc/*"
       },
     ]
   })
 }
 
 # STS AssumeRole for reading customer-managed OIDC secrets (unmanaged configs)
-resource "aws_iam_role_policy" "hyperfleet_operator_assume_role" {
-  name = "${var.regional_id}-hyperfleet-operator-assume-role"
-  role = aws_iam_role.hyperfleet_operator.id
+resource "aws_iam_role_policy" "seaplane_operator_assume_role" {
+  name = "${var.regional_id}-seaplane-operator-assume-role"
+  role = aws_iam_role.seaplane_operator.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -692,7 +692,7 @@ resource "aws_iam_role_policy" "hyperfleet_operator_assume_role" {
         Resource = "arn:aws:iam::*:role/*"
         Condition = {
           StringEquals = {
-            "iam:ResourceTag/hyperfleet-access" = "true"
+            "iam:ResourceTag/seaplane-access" = "true"
           }
         }
       },

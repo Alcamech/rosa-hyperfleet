@@ -31,7 +31,7 @@ module "platform_image" {
   resource_name_base = "rosa-regional"
   name_prefix        = var.name_prefix
   tags = {
-    Name        = "rosa-hyperfleet-image"
+    Name        = "rosa-seaplane-image"
     Environment = var.environment
   }
 }

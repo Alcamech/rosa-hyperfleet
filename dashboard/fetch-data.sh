@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fetches open PRs labelled "review-ready", "discussion-needed", or "needs-ok-to-test" across all
-# ROSA HyperFleet repos and writes dashboard/data.json.
+# ROSA Seaplane repos and writes dashboard/data.json.
 #
 # Uses `gh pr list` (not `gh search prs`) so we can include reviewRequests.
 #
@@ -12,12 +12,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${SCRIPT_DIR}/data.json"
 
 REPOS=(
-  openshift-online/rosa-hyperfleet
-  openshift-online/rosa-hyperfleet-api
-  openshift-online/rosa-hyperfleet-cli
-  openshift-online/rosa-hyperfleet-internal
-  openshift-online/rosa-hyperfleet-zoa
-  openshift-online/rosa-hyperfleet-kube-applier
+  openshift-online/rosa-seaplane
+  openshift-online/rosa-seaplane-api
+  openshift-online/rosa-seaplane-cli
+  openshift-online/rosa-seaplane-internal
+  openshift-online/rosa-seaplane-zoa
+  openshift-online/rosa-seaplane-kube-applier
   openshift-online/aws-nuke-cf
 )
 

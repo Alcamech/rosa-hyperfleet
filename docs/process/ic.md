@@ -1,10 +1,10 @@
-# ROSA HyperFleet IC
+# ROSA Seaplane IC
 
-This document describes the ROSA HyperFleet IC (Interrupt Catcher) process.
+This document describes the ROSA Seaplane IC (Interrupt Catcher) process.
 
 ## Overview
 
-The IC is the weekly point person for operational interrupts on the ROSA HyperFleet team. The role aims to keep the underlying infrastructure stable and prevent the team from accruing technical debt.
+The IC is the weekly point person for operational interrupts on the ROSA Seaplane team. The role aims to keep the underlying infrastructure stable and prevent the team from accruing technical debt.
 
 There is no expectation for the IC to be available outside of Business Hours. The IC should review and address their responsibilities at the start of each day.
 
@@ -19,14 +19,14 @@ The IC is expected to use AI and write automation to reduce the burden on themse
 The IC is responsible for the following tasks:
 
 - Ensure that the CI jobs are running correctly, in particular:
-  - [Nightly Ephemeral](https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-ephemeral)
-  - [Nightly Integration](https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-hyperfleet-main-nightly-integration)
-  - [On-demand E2E](https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-hyperfleet-main-on-demand-e2e)
+  - [Nightly Ephemeral](https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-seaplane-main-nightly-ephemeral)
+  - [Nightly Integration](https://prow.ci.openshift.org/job-history/gs/test-platform-results/logs/periodic-ci-openshift-online-rosa-seaplane-main-nightly-integration)
+  - [On-demand E2E](https://prow.ci.openshift.org/job-history/gs/test-platform-results/pr-logs/directory/pull-ci-openshift-online-rosa-seaplane-main-on-demand-e2e)
     - Note that only consistent, platform-level failures are the IC's responsibility, as opposed to one-off failures caused by the PRs being tested
-- Monitor the PR queue via the [PR Dashboard](https://openshift-online.github.io/rosa-hyperfleet/pr-dashboard):
+- Monitor the PR queue via the [PR Dashboard](https://openshift-online.github.io/rosa-seaplane/pr-dashboard):
   - For human PRs: ensure they have an appropriate reviewer assigned — the IC is not expected to review these themselves
   - For bot/agent PRs (dependabot, Konflux/MintMaker, chai-bot): run `/ok-to-test` after verifying they are safe, then merge or delegate to an appropriate reviewer
-- Work on items in the [ROSA HyperFleet IC Queue](https://redhat.atlassian.net/issues?filter=112523).
+- Work on items in the [ROSA Seaplane IC Queue](https://redhat.atlassian.net/issues?filter=112523).
   - Items on this queue should always be down to zero.
 
 ## Rotation

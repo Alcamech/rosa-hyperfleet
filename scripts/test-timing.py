@@ -196,7 +196,7 @@ def now_iso() -> str:
 
 def compute_shard(document_id: str, shard_count: int = 4) -> str:
     """
-    Mirror of hyperfleet-dynamo ComputeShard (dynamodb/shard.go):
+    Mirror of seaplane-dynamo ComputeShard (dynamodb/shard.go):
       1. Strip hyphens from the UUID string.
       2. Parse the first 8 hex characters as a base-16 uint64.
       3. Return str(value % shard_count).
