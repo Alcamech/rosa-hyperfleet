@@ -2,8 +2,7 @@
 # VPC and Networking Configuration
 #
 # Creates a fully private networking environment with:
-# - Private/public subnets in every region AZ, so management clusters can back a
-#   PrivateLink service covering every AZ ID a customer might use
+# - Multi-AZ private/public subnets for high availability
 # - Per-AZ NAT Gateways for fault-tolerant egress
 # - VPC endpoints for AWS service access without internet routing
 # =============================================================================
@@ -29,9 +28,9 @@ resource "aws_internet_gateway" "main" {
 # -----------------------------------------------------------------------------
 
 resource "aws_subnet" "public" {
-  count             = length(local.public_subnet_cidrs)
+  count             = length(var.public_subnet_cidrs)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = local.public_subnet_cidrs[count.index]
+  cidr_block        = var.public_subnet_cidrs[count.index]
   availability_zone = local.azs[count.index]
 
   tags = merge(local.common_tags, {
@@ -41,9 +40,9 @@ resource "aws_subnet" "public" {
 }
 
 resource "aws_subnet" "private" {
-  count             = length(local.private_subnet_cidrs)
+  count             = length(var.private_subnet_cidrs)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = local.private_subnet_cidrs[count.index]
+  cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = local.azs[count.index]
 
   tags = merge(local.common_tags, {
@@ -54,15 +53,11 @@ resource "aws_subnet" "private" {
 }
 
 # -----------------------------------------------------------------------------
-# NAT Gateways (per-AZ for fault isolation)
-#
-# One NAT gateway per AZ so that an AZ (or NAT) failure only affects that AZ's
-# private subnets, not egress fleet-wide. Note this is fault isolation, not
-# automatic failover: route tables point statically at the in-AZ NAT.
+# NAT Gateways (per-AZ for high availability)
 # -----------------------------------------------------------------------------
 
 resource "aws_eip" "nat" {
-  count  = length(local.public_subnet_cidrs)
+  count  = length(var.public_subnet_cidrs)
   domain = "vpc"
   tags = merge(local.common_tags, {
     Name = "${var.resource_name_base}-nat-eip-${local.azs[count.index]}"
@@ -70,7 +65,7 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "main" {
-  count         = length(local.public_subnet_cidrs)
+  count         = length(var.public_subnet_cidrs)
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
   depends_on    = [aws_internet_gateway.main]
@@ -120,7 +115,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table" "private" {
-  count  = length(local.private_subnet_cidrs)
+  count  = length(var.private_subnet_cidrs)
   vpc_id = aws_vpc.main.id
 
   route {
@@ -134,13 +129,13 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(local.public_subnet_cidrs)
+  count          = length(var.public_subnet_cidrs)
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table_association" "private" {
-  count          = length(local.private_subnet_cidrs)
+  count          = length(var.private_subnet_cidrs)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
 }
