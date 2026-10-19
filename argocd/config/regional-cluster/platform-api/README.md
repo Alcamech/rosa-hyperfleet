@@ -117,15 +117,15 @@ kubectl delete namespace platform-api
 
 ### Application Configuration
 
-| Parameter                              | Description                          | Default                                     |
-| -------------------------------------- | ------------------------------------ | ------------------------------------------- |
-| `platformApi.namespace`                | Namespace to deploy into             | `platform-api`                              |
-| `platformApi.app.name`                 | Application name                     | `platform-api`                              |
+| Parameter                              | Description                          | Default                            |
+| -------------------------------------- | ------------------------------------ | ---------------------------------- |
+| `platformApi.namespace`                | Namespace to deploy into             | `platform-api`                     |
+| `platformApi.app.name`                 | Application name                     | `platform-api`                     |
 | `platformApi.app.image.repository`     | Container image repository           | `quay.io/cdoan0/rosa-seaplane-api` |
-| `platformApi.app.image.tag`            | Container image tag                  | `nodb`                                      |
-| `platformApi.app.args.allowedAccounts` | Comma-separated AWS account IDs      | `"123456789012"`                            |
-| `platformApi.app.args.logLevel`        | Log level (debug, info, warn, error) | `info`                                      |
-| `platformApi.deployment.replicas`      | Number of replicas                   | `1`                                         |
+| `platformApi.app.image.tag`            | Container image tag                  | `nodb`                             |
+| `platformApi.app.args.allowedAccounts` | Comma-separated AWS account IDs      | `"123456789012"`                   |
+| `platformApi.app.args.logLevel`        | Log level (debug, info, warn, error) | `info`                             |
+| `platformApi.deployment.replicas`      | Number of replicas                   | `1`                                |
 
 ### Envoy Configuration
 
