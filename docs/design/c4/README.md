@@ -41,8 +41,23 @@ make png        # also render PNGs
 make export     # DSL -> one structurizr-<View>.puml per view (no images)
 make mermaid    # export Mermaid (.mmd) for embedding one view into a markdown doc
 make lite       # serve interactive Structurizr Lite at http://localhost:8080
+make static     # export a self-contained static site to static-site/ (see below)
 make clean      # remove generated .puml / .mmd / .svg / .png
 ```
+
+### Sharing an interactive view without running Structurizr Lite
+
+`make lite` is great for editing (live reload, drag-to-position in Lite's layout engine), but it's a
+server you have to keep running. For just *sharing* the diagrams interactively (pan/zoom,
+double-click to navigate between views, tooltips), `structurizr-cli` has a built-in `-format static`
+export that needs none of that: it renders the same JS diagram viewer used by Lite/Cloud into a
+folder of plain HTML/CSS/JS with the workspace JSON embedded — no backend, no API calls out. `make
+static` writes it to `static-site/`; the folder is deployable as-is to GitHub Pages or any static
+file host. It only renders views (no documentation pages or ADRs — that part of Lite/Cloud isn't in
+this export). For a fuller static site that also includes docs/ADRs, see
+[avisi-cloud/structurizr-site-generatr](https://github.com/avisi-cloud/structurizr-site-generatr), a
+separate third-party tool — not used here since the lighter built-in export already covers what this
+model needs.
 
 **Why PlantUML, not Mermaid.** Rendering is PlantUML + Graphviz, which gives proper nested C4 group
 boxes and legible edges once the model grows past a handful of elements. Mermaid auto-layout

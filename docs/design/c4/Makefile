@@ -14,6 +14,7 @@
 #   make png        # also render PNGs
 #   make mermaid    # export Mermaid (.mmd) for embedding a view into a markdown doc
 #   make lite       # serve interactive Structurizr Lite at http://localhost:8080
+#   make static     # export a self-contained static site (diagrams only) to static-site/
 #   make clean      # remove generated .puml / .mmd / .svg / .png
 
 C4_DIR          := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -27,7 +28,7 @@ STRUCTURIZR_RUN := $(ENGINE) run --rm -v "$(C4_DIR):/usr/local/structurizr" $(ST
 PLANTUML_RUN    := $(ENGINE) run --rm -v "$(C4_DIR):/work" -w /work $(PLANTUML_IMG)
 MERMAID_RUN     := $(ENGINE) run --rm -v "$(C4_DIR):/data" $(MERMAID_IMG)
 
-.PHONY: all export svg png mermaid lite clean
+.PHONY: all export svg png mermaid lite static clean
 
 ## all: export PlantUML from the DSL and render every view to SVG
 all: svg
@@ -63,7 +64,26 @@ mermaid:
 lite:
 	$(ENGINE) run -it --rm -p 8080:8080 -v "$(C4_DIR):/usr/local/structurizr" $(STRUCTURIZR_IMG) local
 
+## static: export a self-contained static site (plain HTML/CSS/JS, no backend)
+# to static-site/. Same interactive diagram renderer as Lite (pan/zoom,
+# click-through between views, tooltips) but no documentation/ADR pages -
+# just the views. Deployable as-is to GitHub Pages or any static host.
+# The exported viewer has no persistent sidebar of its own (navigation is
+# double-click / arrow keys / Space quick-find), so static-site-assets/
+# (hand-authored, tracked in git) supplies one: it's dropped in as index.html,
+# listing every view from workspace.js and driving the exported viewer -
+# renamed to diagram.html - via its #<ViewKey> hash navigation in an iframe.
+static:
+	rm -rf $(C4_DIR)/static-site
+	mkdir -p $(C4_DIR)/static-site
+	@sleep 1 # podman-machine's virtiofs mount on macOS needs a moment to see a just-created empty dir
+	$(STRUCTURIZR_RUN) export -workspace $(WORKSPACE) -format static -output /usr/local/structurizr/static-site
+	mv $(C4_DIR)/static-site/index.html $(C4_DIR)/static-site/diagram.html
+	cp $(C4_DIR)/static-site-assets/index.html $(C4_DIR)/static-site/index.html
+	@echo "Static site written to static-site/ - serve locally with: python3 -m http.server -d static-site 8080"
+
 ## clean: remove generated PlantUML, Mermaid, and image files
 clean:
 	rm -f $(C4_DIR)/structurizr-*.puml $(C4_DIR)/structurizr-*.mmd \
 		$(C4_DIR)/structurizr-*.svg $(C4_DIR)/structurizr-*.png
+	rm -rf $(C4_DIR)/static-site

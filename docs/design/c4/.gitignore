@@ -8,3 +8,6 @@ structurizr-*.png
 # Structurizr CLI/Lite runtime state (export index, workspace.json snapshot)
 .structurizr/
 workspace.json
+
+# Generated static site (`make static`) - reproducible from the DSL
+static-site/
