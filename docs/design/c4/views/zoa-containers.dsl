@@ -18,5 +18,6 @@ container seaplane "ZOA" "How an SRE's audited operational action reaches RC or 
     include seaplane.mc
     include sre
     include central
+    exclude "relationship.tag==Desire"
     autolayout lr
 }

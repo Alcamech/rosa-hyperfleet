@@ -9,7 +9,7 @@ group "People" {
 
 # External systems -------------------------------------------------------
 ecr            = softwareSystem "Amazon ECR (platform images)" "Central/shared registry the region pulls pinned platform and component images from; fed by Konflux and by automation that mirrors the OCP payloads." "External"
-configRepo     = softwareSystem "Config Git Repo" "openshift-online/rosa-seaplane: version-controlled source of truth for pinned image SHAs, Helm charts, and Terraform modules — the region is changed by redeploying from here (GitOps) rather than mutating live state directly." "External"
+configRepo     = softwareSystem "Config Git Repo" "openshift-online/rosa-seaplane: version-controlled source of truth for pinned image SHAs, Helm charts, and Terraform modules — the region is changed by redeploying from here (GitOps) rather than mutating live state directly, wherever reasonable." "External"
 slack          = softwareSystem "Slack" "Receives CodeBuild pipeline FAILED notifications." "External"
 pagerDuty      = softwareSystem "PagerDuty" "Incident paging; receives critical alerts from Alertmanager (feature-flagged)." "External"
 snsSubscribers = softwareSystem "SNS Alert Subscribers" "Team-owned downstream consumers subscribed to the regional alerts SNS topic for automated remediation (AI)." "External,Planned"

@@ -5,6 +5,9 @@
 # and get their own scoped container view later instead of being
 # crammed into this one. Konflux is also hidden — transitively related
 # via ECR, not a direct neighbour of anything shown at this level.
+# ZOA-tagged relationships are excluded by tag (see model/relationships.dsl)
+# so the ZOA-flavoured mc<->rc arrows don't leak in alongside the
+# "Desire"-tagged kube-applier one.
 # customerAdmin -> rhSso is excluded too: it's a customer-side step
 # (getting their own RH token) independent of RC's internals — already
 # shown at System Context — and its competing pull away from platformApi
@@ -26,5 +29,6 @@ container seaplane "Containers" "How a customer's request to create and run a ho
     include configRepo
     include route53Public
     exclude "customerAdmin -> rhSso"
+    exclude "relationship.tag==ZOA"
     autolayout lr
 }

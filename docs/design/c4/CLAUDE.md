@@ -19,9 +19,13 @@ Work in this directory burns context fast: rendered diagrams (PNG/SVG) and the A
 
 The goal is to publish this model as a **shared, interactive webpage**, not static PNG/SVG exports.
 
-- **Lite uses its own browser layout engine**, separate from the PlantUML + Graphviz pipeline
-  behind `make` / `make png`. Element ordering and positions differ between the two, so the PNG/SVG
-  is _not_ authoritative for how the shared page will look — judge layout in Lite.
+- **Lite and `make static` both use Structurizr's own server-side Graphviz automatic layout**,
+  honoring the DSL's `autoLayout` tuning (direction, rankSeparation, nodeSeparation) directly —
+  Graphviz is a documented prerequisite for Lite itself, not just static export. The PlantUML
+  export behind `make` / `make png` is a genuinely separate pipeline: it converts the DSL to
+  PlantUML text, which the external `plantuml` tool lays out via its *own*, independent Graphviz
+  invocation that doesn't read Structurizr's `autoLayout` values at all. That's why PNG/SVG
+  positioning can differ from Lite/the published site — judge layout in Lite or `make static`.
 - **Hosting**: `structurizr-cli`'s `-format static` export (wired up as `make static`) renders the
   same interactive JS diagram viewer Lite uses (pan/zoom, click-through, tooltips) into plain
   HTML/CSS/JS with the workspace JSON embedded — no backend needed. That folder is what gets

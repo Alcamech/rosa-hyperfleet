@@ -4,30 +4,43 @@ A [C4 model](https://c4model.com/) of a single, self-contained ROSA Seaplane reg
 code with the [Structurizr DSL](https://docs.structurizr.com/dsl). There is **one model** (the C4
 best practice) split across several files for maintainability.
 
-This is a fresh start at **System Context** level: ROSA Seaplane as a single box, its people, and
-the external systems it talks to. Container, component, dynamic and deployment views were removed
-and will be rebuilt incrementally on top of this.
+Built up deliberately one abstraction level at a time — System Context first, then Container, then
+Component — rather than generating everything at once (an earlier, more exhaustive attempt produced
+an unreadable wall-map and was discarded; see `CLAUDE.md`'s "What we're doing" section).
 
 ## Layout
 
 ```
 workspace.dsl                 # top-level: wires the model + views together
 model/
-  people-external.dsl         # people (End User, SRE) + external systems
-  relationships.dsl           # relationships (currently System Context level)
+  people-external.dsl         # people + external systems
+  containers.dsl               # RC/MC/Customer Hosted Cluster containers and their components
+  relationships.dsl           # all relationships, at whatever level of detail is known
 views/
   structure.dsl                # System Context view
-  styles.dsl                   # element + relationship styling (incl. tags not yet used)
+  containers.dsl               # Container view (regular user flow)
+  rc-components.dsl            # Component view, zooming into RC
+  mc-components.dsl            # Component view, zooming into MC
+  zoa-containers.dsl           # Container view, SRE/ZOA scope
+  zoa-components.dsl           # Component view, SRE/ZOA scope (RC + MC side by side)
+  styles.dsl                   # element + relationship styling
 ```
 
-## The current view
+## The current views
 
-| View            | What it shows                                                 |
-| --------------- | -------------------------------------------------------------- |
-| `SystemContext` | Seaplane as one system, its people and the external systems |
+| View             | Level     | What it shows                                                        |
+| ---------------- | --------- | ---------------------------------------------------------------------- |
+| `SystemContext`  | Context   | Seaplane as one system, its people, and the external systems          |
+| `Containers`     | Container | RC, MC, Customer Hosted Cluster — regular customer flow only          |
+| `RCComponents`   | Component | RC's internals: Platform API, Seaplane Operator, Postgres, ArgoCD, Alertmanager, etc. |
+| `MCComponents`   | Component | MC's internals: kube-applier, HyperShift Operator, ArgoCD              |
+| `ZOA`            | Container | How an SRE's audited operational action reaches RC or MC               |
+| `ZOAComponents`  | Component | RC's and MC's ZOA pieces side by side (Lambdas, the Boundary, etc.)    |
 
-As the model grows, containers go back into `model/` (likely split one file per AWS account, as
-before) and new views go into `views/`, following the same `!include` pattern.
+Published as an interactive static site at
+[openshift-online.github.io/rosa-seaplane/c4-model](https://openshift-online.github.io/rosa-seaplane/c4-model)
+(see "Sharing an interactive view" below). New views go into `views/`, following the same
+`!include` pattern as the ones above.
 
 ## Rendering
 

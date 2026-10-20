@@ -1,6 +1,15 @@
 # System Context relationships. Container- and component-level relationships
 # move into this file as the model grows past a single software system.
 
+# Explicit, tagged container-level RC<->MC arrows, declared first so
+# !impliedRelationships's default strategy doesn't create untagged implied
+# duplicates from the cross-container component relationships below (which
+# would otherwise leak into views that exclude by tag, e.g. the ZOA arrows
+# showing up in the regular-user-flow Containers view).
+seaplane.mc -> seaplane.rc "Polls desired cluster and add-on configuration from, and reports status back to" "via kube-applier's shared DynamoDB tables" "Desire"
+seaplane.rc -> seaplane.mc "Launches (cross-account) and vends scoped ECS Exec credentials for the ZOA Boundary in" "ecs:RunTask via STS AssumeRole" "ZOA"
+seaplane.mc -> seaplane.rc "Records ZOA executions, audit, and session reconciliation in" "cross-account, resource-based policy" "ZOA"
+
 customerAdmin -> seaplane.rc.platformApi "Links AWS account and manages authz policies via" "rosactl / RH token"
 customerAdmin -> rhSso "Obtains Red Hat token from"
 endUser -> seaplane.rc.platformApi "Creates and manages hosted clusters via" "HTTPS / AWS SigV4"
@@ -29,7 +38,6 @@ route53Public -> seaplane.rc "Delegates regional DNS zones to"
 seaplane.rc -> telemeter "Forwards fleet-wide metrics to"
 
 seaplane.mc.kubeApplier -> seaplane.rc.desireTables "Polls desired cluster and add-on configuration from, and reports status back to"
-seaplane.mc -> seaplane.rc "Polls desired cluster and add-on configuration from, and reports status back to" "via kube-applier's shared DynamoDB tables"
 seaplane.mc.hyperShiftOperator -> seaplane.customerHostedCluster "Creates and manages the lifecycle of the hosted control plane for"
 seaplane.customerHostedCluster -> seaplane.mc "Worker nodes (in the customer's own AWS account) connect to the hosted control plane's API in"
 
