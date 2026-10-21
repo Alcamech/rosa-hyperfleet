@@ -24,10 +24,24 @@ STRUCTURIZR_IMG ?= docker.io/structurizr/structurizr
 PLANTUML_IMG    ?= docker.io/plantuml/plantuml
 MERMAID_IMG     ?= docker.io/minlag/mermaid-cli
 
-# :Z relabels the bind mount for SELinux (rootless Podman on Fedora/RHEL
-# otherwise reports the mounted directory as not writable). No-op on
-# systems without SELinux (e.g. macOS, plain Linux), so safe everywhere.
-STRUCTURIZR_RUN := $(ENGINE) run --rm -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG)
+# :Z relabels the bind mount for SELinux (rootless Podman on Fedora/RHEL).
+# The structurizr image runs as UID 65532, which cannot write a host-owned
+# bind mount under rootless Podman. --user 0:0 maps container root to the
+# invoking user on the host (normal rootless pattern on native Linux); files
+# stay owned by you. Only applied for native Linux Podman: on macOS, Podman
+# Machine's VM maps "container root" differently (not back to the host user
+# via virtiofs), so --user 0:0 there breaks writes instead of fixing them —
+# `uname` is checked (not just ENGINE) since both setups report `podman`.
+ifeq ($(ENGINE),podman)
+ifeq ($(shell uname),Linux)
+STRUCTURIZR_USER_FLAGS := --user 0:0
+else
+STRUCTURIZR_USER_FLAGS :=
+endif
+else
+STRUCTURIZR_USER_FLAGS :=
+endif
+STRUCTURIZR_RUN := $(ENGINE) run --rm $(STRUCTURIZR_USER_FLAGS) -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG)
 PLANTUML_RUN    := $(ENGINE) run --rm -v "$(C4_DIR):/work:Z" -w /work $(PLANTUML_IMG)
 MERMAID_RUN     := $(ENGINE) run --rm -v "$(C4_DIR):/data:Z" $(MERMAID_IMG)
 
@@ -64,8 +78,9 @@ mermaid:
 ## lite: serve the interactive Structurizr Lite UI (Ctrl-C to stop)
 # The old structurizr/lite image is deprecated (its entrypoint only prints a
 # notice and exits); Lite now lives in the consolidated image as `... local`.
+LITE_PORT ?= 8080
 lite:
-	$(ENGINE) run -it --rm -p 8080:8080 -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG) local
+	$(ENGINE) run -it --rm $(STRUCTURIZR_USER_FLAGS) -p $(LITE_PORT):8080 -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG) local
 
 ## static: export a self-contained static site (plain HTML/CSS/JS, no backend)
 # to static-site/. Same interactive diagram renderer as Lite (pan/zoom,
@@ -89,4 +104,4 @@ static:
 clean:
 	rm -f $(C4_DIR)/structurizr-*.puml $(C4_DIR)/structurizr-*.mmd \
 		$(C4_DIR)/structurizr-*.svg $(C4_DIR)/structurizr-*.png
-	rm -rf $(C4_DIR)/static-site
+	rm -rf $(C4_DIR)/static-site $(C4_DIR)/.structurizr $(C4_DIR)/workspace.json
