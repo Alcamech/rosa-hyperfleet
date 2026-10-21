@@ -24,9 +24,12 @@ STRUCTURIZR_IMG ?= docker.io/structurizr/structurizr
 PLANTUML_IMG    ?= docker.io/plantuml/plantuml
 MERMAID_IMG     ?= docker.io/minlag/mermaid-cli
 
-STRUCTURIZR_RUN := $(ENGINE) run --rm -v "$(C4_DIR):/usr/local/structurizr" $(STRUCTURIZR_IMG)
-PLANTUML_RUN    := $(ENGINE) run --rm -v "$(C4_DIR):/work" -w /work $(PLANTUML_IMG)
-MERMAID_RUN     := $(ENGINE) run --rm -v "$(C4_DIR):/data" $(MERMAID_IMG)
+# :Z relabels the bind mount for SELinux (rootless Podman on Fedora/RHEL
+# otherwise reports the mounted directory as not writable). No-op on
+# systems without SELinux (e.g. macOS, plain Linux), so safe everywhere.
+STRUCTURIZR_RUN := $(ENGINE) run --rm -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG)
+PLANTUML_RUN    := $(ENGINE) run --rm -v "$(C4_DIR):/work:Z" -w /work $(PLANTUML_IMG)
+MERMAID_RUN     := $(ENGINE) run --rm -v "$(C4_DIR):/data:Z" $(MERMAID_IMG)
 
 .PHONY: all export svg png mermaid lite static clean
 
@@ -62,7 +65,7 @@ mermaid:
 # The old structurizr/lite image is deprecated (its entrypoint only prints a
 # notice and exits); Lite now lives in the consolidated image as `... local`.
 lite:
-	$(ENGINE) run -it --rm -p 8080:8080 -v "$(C4_DIR):/usr/local/structurizr" $(STRUCTURIZR_IMG) local
+	$(ENGINE) run -it --rm -p 8080:8080 -v "$(C4_DIR):/usr/local/structurizr:Z" $(STRUCTURIZR_IMG) local
 
 ## static: export a self-contained static site (plain HTML/CSS/JS, no backend)
 # to static-site/. Same interactive diagram renderer as Lite (pan/zoom,
