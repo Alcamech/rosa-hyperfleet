@@ -13,6 +13,9 @@
 #   use_rc_account           Switch to RC account
 #   use_central_account      Restore central account credentials
 #   get_rc_account_id        Return resolved RC account ID
+#   get_central_ssm_parameter Read /infra/* SSM from the central (pipeline) account
+#   resolve_management_cluster_account_id  MC account_id from deploy JSON → 12-digit ID
+#   build_management_clusters_tf_var       management_clusters_info JSON → TF_VAR string
 #   terraform_init_backend   Init terraform with S3 backend
 #   bootstrap_argocd         Run ArgoCD bootstrap via ECS task
 #   import_if_needed         Idempotent terraform import
@@ -82,6 +85,20 @@ get_rc_account_id() {
     echo "$_RESOLVED_RC_ACCOUNT_ID"
 }
 
+# Read SSM from the central CodeBuild account. /infra/* params live there, not in RC/MC.
+get_central_ssm_parameter() {
+    local param_name="$1"
+    AWS_ACCESS_KEY_ID="$_CENTRAL_AWS_ACCESS_KEY_ID" \
+        AWS_SECRET_ACCESS_KEY="$_CENTRAL_AWS_SECRET_ACCESS_KEY" \
+        AWS_SESSION_TOKEN="$_CENTRAL_AWS_SESSION_TOKEN" \
+        aws ssm get-parameter \
+            --name "$param_name" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text \
+            --region "${TARGET_REGION}"
+}
+
 _resolve_rc_account() {
     if [ -n "$_RESOLVED_RC_ACCOUNT_ID" ]; then
         return
@@ -91,17 +108,86 @@ _resolve_rc_account() {
 
     if [[ "$_RESOLVED_RC_ACCOUNT_ID" =~ ^ssm:// ]]; then
         local ssm_param="${_RESOLVED_RC_ACCOUNT_ID#ssm://}"
-        _RESOLVED_RC_ACCOUNT_ID=$(
-            AWS_ACCESS_KEY_ID="$_CENTRAL_AWS_ACCESS_KEY_ID" \
-            AWS_SECRET_ACCESS_KEY="$_CENTRAL_AWS_SECRET_ACCESS_KEY" \
-            AWS_SESSION_TOKEN="$_CENTRAL_AWS_SESSION_TOKEN" \
-            aws ssm get-parameter \
-                --name "$ssm_param" \
-                --with-decryption \
-                --query 'Parameter.Value' \
-                --output text \
-                --region "${TARGET_REGION}")
+        _RESOLVED_RC_ACCOUNT_ID=$(get_central_ssm_parameter "$ssm_param")
     fi
+}
+
+# ── management_clusters (RC Terraform) ───────────────────────────────────────
+#
+# Terraform always uses the same variable: management_clusters = "mc01:123456789012,..."
+# (see TF_VAR_management_clusters in provision-infra-rc.sh).
+#
+# Only the *source* of each MC AWS account ID in deploy JSON differs by environment:
+#
+#   Static (integration, stage, production, …):
+#     render.py leaves account_id as ssm:///infra/<env>/<region>/<mc>/account_id
+#     in pipeline-regional-cluster-inputs/terraform.json. Values live in the
+#     central pipeline account; resolve here at apply time.
+#
+#   Ephemeral:
+#     ci/ephemeral-provider (or local dev) injects literal 12-digit account IDs
+#     into config before render. deploy JSON must not contain ssm:// for MC
+#     account_id (guard below).
+#
+# resolve_management_cluster_account_id: one deploy "account_id" field → digits or empty.
+
+resolve_management_cluster_account_id() {
+    local raw_account_id="$1"
+
+    if [[ -z "$raw_account_id" ]]; then
+        echo ""
+        return 0
+    fi
+
+    if [[ "${ENVIRONMENT:-}" == "ephemeral" && "$raw_account_id" =~ ^ssm:// ]]; then
+        echo "ERROR: ephemeral RC deploy must use literal MC account_id in management_clusters_info" >&2
+        echo "  (re-render after ephemeral provider sets aws.management_cluster_account_id from STS)" >&2
+        exit 1
+    fi
+
+    if [[ "$raw_account_id" =~ ^ssm:// ]]; then
+        local ssm_param="${raw_account_id#ssm://}"
+        get_central_ssm_parameter "$ssm_param" 2>/dev/null || true
+        return 0
+    fi
+
+    echo "$raw_account_id"
+}
+
+# build_management_clusters_tf_var: deploy JSON path → "id:account,id:account" for Terraform.
+
+build_management_clusters_tf_var() {
+    local deploy_config_file="$1"
+    local mc_info
+    mc_info=$(jq -c '.management_clusters_info // []' "$deploy_config_file")
+
+    if [[ "$mc_info" == "[]" ]]; then
+        echo ""
+        return 0
+    fi
+
+    local parts=()
+    local entry id acct resolved
+    for entry in $(echo "$mc_info" | jq -r '.[] | @base64'); do
+        id=$(echo "$entry" | base64 -d | jq -r '.id')
+        acct=$(echo "$entry" | base64 -d | jq -r '.account_id')
+        resolved=$(resolve_management_cluster_account_id "$acct")
+        if [[ -n "$resolved" && -n "$id" ]]; then
+            parts+=("${id}:${resolved}")
+        fi
+    done
+
+    local mc_info_len
+    mc_info_len=$(echo "$mc_info" | jq 'length')
+    if [[ "$mc_info_len" -gt 0 && ${#parts[@]} -eq 0 ]]; then
+        echo "ERROR: management_clusters_info lists ${mc_info_len} cluster(s) but none resolved to id:account_id" >&2
+        echo "  static envs: check central SSM /infra/${ENVIRONMENT:-<env>}/<region>/<mc>/account_id" >&2
+        echo "  ephemeral: use literal account_id in deploy JSON (provider inject + render)" >&2
+        exit 1
+    fi
+
+    local IFS=,
+    echo "${parts[*]}"
 }
 
 _assume_account() {

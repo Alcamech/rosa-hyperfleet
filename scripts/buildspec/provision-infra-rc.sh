@@ -51,33 +51,9 @@ _REPO_BRANCH="${REPOSITORY_BRANCH:-main}"
 export TF_VAR_repository_url="${REPOSITORY_URL}"
 export TF_VAR_repository_branch="${_REPO_BRANCH}"
 
-# Build colon-delimited management clusters string: "mc01:123456789012,mc02:987654321098"
-_MC_PARTS=()
-_MC_INFO=$(jq -c '.management_clusters_info // []' "$DEPLOY_CONFIG_FILE")
-if [[ "$_MC_INFO" != "[]" ]]; then
-    for _ENTRY in $(echo "$_MC_INFO" | jq -r '.[] | @base64'); do
-        _ID=$(echo "$_ENTRY" | base64 -d | jq -r '.id')
-        _ACCT=$(echo "$_ENTRY" | base64 -d | jq -r '.account_id')
-        if [[ "$_ACCT" =~ ^ssm:// ]]; then
-            _SSM_PARAM="${_ACCT#ssm://}"
-            _ACCT=$(aws ssm get-parameter --name "$_SSM_PARAM" --with-decryption \
-                --query 'Parameter.Value' --output text --region "${TARGET_REGION}" 2>/dev/null || true)
-        fi
-        if [[ -n "$_ACCT" && -n "$_ID" ]]; then
-            _MC_PARTS+=("${_ID}:${_ACCT}")
-        fi
-    done
-    _MC_INFO_LEN=$(echo "$_MC_INFO" | jq 'length')
-    if [[ "$_MC_INFO_LEN" -gt 0 && ${#_MC_PARTS[@]} -eq 0 ]]; then
-        echo "ERROR: management_clusters_info lists ${_MC_INFO_LEN} cluster(s) but none resolved to id:account_id (check account_id or SSM parameters)" >&2
-        exit 1
-    fi
-    if [[ "${ENVIRONMENT:-}" == "ephemeral" ]] && echo "$_MC_INFO" | jq -e '.[].account_id | test("^ssm://")' >/dev/null 2>&1; then
-        echo "ERROR: ephemeral RC deploy must use literal MC account_id in management_clusters_info (re-render after ephemeral provider injects aws.management_cluster_account_id)" >&2
-        exit 1
-    fi
-fi
-export TF_VAR_management_clusters=$(IFS=,; echo "${_MC_PARTS[*]}")
+# Same Terraform variable for all environments; see build_management_clusters_tf_var in lib.sh.
+export TF_VAR_management_clusters
+TF_VAR_management_clusters=$(build_management_clusters_tf_var "$DEPLOY_CONFIG_FILE")
 
 if [ -z "${PLATFORM_IMAGE:-}" ]; then
     echo "ERROR: PLATFORM_IMAGE is not set" >&2
