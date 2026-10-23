@@ -56,6 +56,9 @@ spec:
               value: {{ .Values.global.aws_region | quote }}
             - name: AUTHZ_CONFIG_FILE
               value: /etc/platform-api/authz/config.yaml
+            # "id:account" pairs platform-api registers on startup.
+            - name: MANAGEMENT_CLUSTERS
+              value: {{ .Values.global.management_clusters | default "" | quote }}
             - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:

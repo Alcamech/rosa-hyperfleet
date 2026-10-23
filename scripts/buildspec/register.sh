@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Register a Management Cluster with the Regional Cluster API.
+# Wait for the Regional Cluster API to be live after MC provisioning.
+# platform-api registers management clusters itself on startup (MANAGEMENT_CLUSTERS).
 # Called from: terraform/config/pipeline-management-cluster/buildspec-register.yml
 set -euo pipefail
 
@@ -13,11 +14,11 @@ DELETE_FLAG=$(jq -r '.delete // false' "$DEPLOY_CONFIG_FILE")
 [ "${IS_DESTROY:-false}" == "true" ] && DELETE_FLAG="true"
 
 if [ "${DELETE_FLAG}" == "true" ]; then
-    echo "delete=true — skipping MC registration"
+    echo "delete=true — skipping RC API check"
     exit 0
 fi
 
-echo "Registering MC ${CLUSTER_ID} with RC API"
+echo "Checking RC API for MC ${CLUSTER_ID}"
 
 # Read API Gateway URL and CloudFront domain from RC terraform state
 RESOLVED_REGIONAL_ACCOUNT_ID="${REGIONAL_AWS_ACCOUNT_ID}"
@@ -29,9 +30,7 @@ if [ ! -f "$RC_CONFIG_FILE" ]; then
 fi
 RC_REGIONAL_ID=$(jq -r '.regional_id' "$RC_CONFIG_FILE")
 
-# Cedar grants are attached to this configured role, not the CodeBuild account.
-# Same-account registration must assume it too; trust failure is fatal.
-use_rc_account operator
+use_rc_account
 
 RC_STATE_BUCKET="terraform-state-${RESOLVED_REGIONAL_ACCOUNT_ID}-${TARGET_REGION}"
 RC_STATE_KEY="regional-cluster/${RC_REGIONAL_ID}.tfstate"
@@ -88,9 +87,8 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         --user "${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}" \
         "${SECURITY_TOKEN_HEADER[@]}" \
         -X GET "$API_GATEWAY_URL/api/v0/live")
-    CURL_STATUS=$?
 
-    if [ "$CURL_STATUS" = "0" ] && [ "$HTTP_CODE" = "200" ]; then
+    if [ "$HTTP_CODE" = "200" ]; then
         LIVE_OK=true
         break
     fi
@@ -101,57 +99,5 @@ set -e
 
 if [ "$LIVE_OK" != "true" ]; then
     echo "ERROR: /live did not return 200 after $MAX_RETRIES attempts" >&2
-    exit 1
-fi
-
-# Register management cluster
-REGISTER_URL="${API_GATEWAY_URL}/api/v0/management_clusters"
-PAYLOAD=$(cat <<EOJSON
-{
-  "id": "${CLUSTER_ID}",
-  "region": "${TARGET_REGION}",
-  "accountId": "${TARGET_ACCOUNT_ID}"
-}
-EOJSON
-)
-
-set +e
-REG_MAX_RETRIES=10
-REG_RETRY_DELAY=30
-REG_RETRY_COUNT=0
-REG_OK=false
-
-while [ $REG_RETRY_COUNT -lt $REG_MAX_RETRIES ]; do
-    REG_RETRY_COUNT=$((REG_RETRY_COUNT + 1))
-
-    SECURITY_TOKEN_HEADER=()
-    if [ -n "${AWS_SESSION_TOKEN:-}" ]; then
-        SECURITY_TOKEN_HEADER=(-H "x-amz-security-token: ${AWS_SESSION_TOKEN}")
-    fi
-
-    HTTP_CODE=$(curl -s -o /tmp/register-response.json -w "%{http_code}" \
-        --aws-sigv4 "aws:amz:${TARGET_REGION}:execute-api" \
-        --user "${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}" \
-        "${SECURITY_TOKEN_HEADER[@]}" \
-        -X POST "$REGISTER_URL" \
-        -H "Content-Type: application/json" \
-        -d "$PAYLOAD")
-    CURL_STATUS=$?
-
-    # Only transport success with actual 201 or typed 409 is idempotent success.
-    if [ "$CURL_STATUS" = "0" ] && { [ "$HTTP_CODE" = "201" ] || { [ "$HTTP_CODE" = "409" ] &&
-        jq -e '.kind == "Status" and .reason == "Conflict" and .code == 409 and (.message | startswith("MC-MGMT-CREATE-005:"))' /tmp/register-response.json >/dev/null 2>&1; }; }; then
-        REG_OK=true
-        break
-    fi
-
-    echo "Registration returned $HTTP_CODE (attempt $REG_RETRY_COUNT/$REG_MAX_RETRIES), retrying in ${REG_RETRY_DELAY}s..."
-    sleep $REG_RETRY_DELAY
-done
-set -e
-
-if [ "$REG_OK" != "true" ]; then
-    echo "ERROR: Registration failed after $REG_MAX_RETRIES attempts (HTTP $HTTP_CODE)" >&2
-    cat /tmp/register-response.json >&2
     exit 1
 fi

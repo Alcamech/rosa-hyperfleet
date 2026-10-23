@@ -4,6 +4,7 @@ global:
   git_revision: "unknown"
   aws_region: ""
   aws_account_id: ""
+  management_clusters: ""
 
 platformApi:
   # Namespace to deploy into

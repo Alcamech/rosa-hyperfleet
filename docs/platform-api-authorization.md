@@ -33,48 +33,33 @@ applications:
           attachments: []
 ```
 
-That bundle denies everything, including ManagementCluster provisioning.
+That bundle denies everything.
 
-## Provisioning grants
+## Enrollment and management clusters
 
-`config/defaults.yaml` grants the RC child-admin role (`aws.child_admin_role_name`)
-`CreateManagementCluster`, `ListManagementClusters`, and
-`DescribeManagementCluster`, and nothing else:
+`config/defaults.yaml` enrolls the RC account and grants nothing:
 
 ```yaml
 formatVersion: 1
 registeredAccounts: ["@@AWS_ACCOUNT_ID@@"]
 policies: []
 attachments: []
-serviceOperatorPolicies:
-  - id: provision-management-clusters
-    ownerAccountID: "@@AWS_ACCOUNT_ID@@"
-    content: |
-      permit(principal, action in [Seaplane::Action::"CreateManagementCluster", Seaplane::Action::"ListManagementClusters", Seaplane::Action::"DescribeManagementCluster"], resource);
-serviceOperatorAttachments:
-  - id: regional-provisioner
-    policyID: provision-management-clusters
-    principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:role/{{ child_admin_role_name }}
-    scope: regional
-    region: "@@AWS_REGION@@"
 ```
 
-- `{{ child_admin_role_name }}` resolves when `scripts/render.py` runs.
 - `@@AWS_ACCOUNT_ID@@` and `@@AWS_REGION@@` resolve in Helm from
   `global.aws_account_id` and `global.aws_region`, because stable environments
   only know the account at deploy time. Helm fails if a used marker has no valid
   value.
-- A replacement bundle must keep an equivalent grant if the environment
-  provisions ManagementClusters.
-
-`scripts/buildspec/register.sh` registers ManagementClusters as that role, even in
-the central account. A missing role or failed assumption is fatal; there is no
-fallback to ambient credentials. This config creates no IAM trust.
+- ManagementClusters are not authorized through the bundle. platform-api
+  registers each entry of `MANAGEMENT_CLUSTERS` (`id:account`, from the RC's
+  `management_clusters`, delivered as `global.management_clusters`) on startup.
+  Existing entries are kept. `scripts/buildspec/register.sh` only waits for the
+  RC API.
 
 ## Ephemeral environments
 
-`config/ephemeral/defaults.yaml` serves CI and dev. It always grants the resolved
-RC account's role the provisioning actions above.
+`config/ephemeral/defaults.yaml` serves CI and dev. It always enrolls the resolved
+RC account.
 
 - **CI** (`EPH_PREFIX` and `BUILD_ID` set): also grants `AllActions` in
   `us-east-1` to the CI callers in `720644165472` and `313828097858`. Rendering
@@ -92,10 +77,6 @@ make ephemeral-resync ID=<id>
 The example enrolls RC `599476212575` and customer `114594328247` and grants each
 `OrganizationAccountAccessRole` `AllActions` in `us-east-1`. Merge any existing
 overrides first.
-
-E2E runs ManagementCluster checks with `E2E_SERVICE_OPERATOR_PROFILE`. When unset,
-`ci/setup-service-operator-profile.sh` assumes the RC
-`OrganizationAccountAccessRole`; failure fails the suite.
 
 ## Customer label permissions
 
@@ -135,7 +116,6 @@ The Service exposes port `metrics` (9090) and the ServiceMonitor scrapes
 ```sh
 uv run scripts/test_render.py
 uv run scripts/test_ephemeral_authz.py
-uv run --with pytest python -m pytest -q scripts/test_platform_registration.py
 ```
 
 Helm-backed tests require Helm on `PATH`.

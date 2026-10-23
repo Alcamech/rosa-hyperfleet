@@ -27,14 +27,3 @@ applications:
               principalARN: arn:aws:iam::114594328247:role/{{ aws.child_admin_role_name }}
               scope: regional
               region: us-east-1
-          serviceOperatorPolicies:
-            - id: provision-management-clusters
-              ownerAccountID: "599476212575"
-              content: |
-                permit(principal, action in [Seaplane::Action::"CreateManagementCluster", Seaplane::Action::"ListManagementClusters", Seaplane::Action::"DescribeManagementCluster"], resource);
-          serviceOperatorAttachments:
-            - id: regional-provisioner
-              policyID: provision-management-clusters
-              principalARN: arn:aws:iam::599476212575:role/{{ child_admin_role_name }}
-              scope: regional
-              region: us-east-1

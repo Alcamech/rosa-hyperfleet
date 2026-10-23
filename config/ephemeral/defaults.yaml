@@ -98,21 +98,10 @@ applications:
               principalARN: arn:aws:iam::313828097858:user/rrp-hcp-customer
               scope: regional
               region: us-east-1
-          {% else -%}
+          {%- else -%}
           policies: []
           attachments: []
-          {% endif %}
-          serviceOperatorPolicies:
-            - id: provision-management-clusters
-              ownerAccountID: "{{ operator_account }}"
-              content: |
-                permit(principal, action in [Seaplane::Action::"CreateManagementCluster", Seaplane::Action::"ListManagementClusters", Seaplane::Action::"DescribeManagementCluster"], resource);
-          serviceOperatorAttachments:
-            - id: regional-provisioner
-              policyID: provision-management-clusters
-              principalARN: arn:aws:iam::{{ operator_account }}:role/{{ child_admin_role_name }}
-              scope: regional
-              region: "{{ aws_region }}"
+          {%- endif %}
     seaplane:
       oidcS3Bucket: "hypershift-{{ eph_prefix }}-regional-oidc-{{ account_id }}"
 

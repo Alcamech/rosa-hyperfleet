@@ -2461,21 +2461,10 @@ def _resource(resources, kind, name):
     return next(r for r in resources if r["kind"] == kind and r["metadata"]["name"] == name)
 
 
-def _assert_operator_grants(bundle, account, role, region):
-    assert set(bundle) == {
-        "formatVersion", "registeredAccounts", "policies", "attachments",
-        "serviceOperatorPolicies", "serviceOperatorAttachments",
-    }
+def _assert_bundle_fields(bundle):
+    # Bundles carry no service-operator domain; MCs register at startup instead.
+    assert set(bundle) == {"formatVersion", "registeredAccounts", "policies", "attachments"}
     assert bundle["formatVersion"] == 1
-    assert bundle["serviceOperatorPolicies"] == [{
-        "id": "provision-management-clusters", "ownerAccountID": account,
-        "content": 'permit(principal, action in [Seaplane::Action::"CreateManagementCluster", Seaplane::Action::"ListManagementClusters", Seaplane::Action::"DescribeManagementCluster"], resource);\n',
-    }]
-    assert bundle["serviceOperatorAttachments"] == [{
-        "id": "regional-provisioner", "policyID": "provision-management-clusters",
-        "principalARN": f"arn:aws:iam::{account}:role/{role}",
-        "scope": "regional", "region": region,
-    }]
 
 
 class TestAuthzDelivery:
@@ -2492,11 +2481,7 @@ class TestAuthzDelivery:
         bundle = yaml.safe_load(authz["config"])
         assert bundle["registeredAccounts"] == ["@@AWS_ACCOUNT_ID@@"]
         assert bundle["policies"] == bundle["attachments"] == []
-        _assert_operator_grants(
-            bundle, "@@AWS_ACCOUNT_ID@@",
-            "rosa-seaplane-account-admin" if env == "stage" else "OrganizationAccountAccessRole",
-            "us-east-1" if env == "ephemeral" else "@@AWS_REGION@@",
-        )
+        _assert_bundle_fields(bundle)
 
     @pytest.mark.parametrize("ci,account_id,source_accounts", [
         (False, "987654321098", ["987654321098"]),
@@ -2513,7 +2498,7 @@ class TestAuthzDelivery:
         config = _resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"]
         assert config == values["platformApi"]["authz"]["config"] + "\n"
         bundle = yaml.safe_load(config)
-        _assert_operator_grants(bundle, account_id, "OrganizationAccountAccessRole", "us-east-1")
+        _assert_bundle_fields(bundle)
         assert bundle["registeredAccounts"] == source_accounts
         if not ci:
             assert bundle["policies"] == bundle["attachments"] == []
@@ -2578,7 +2563,7 @@ class TestAuthzDelivery:
         config = _resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"]
         assert config == values["platformApi"]["authz"]["config"] + "\n"
         bundle = yaml.safe_load(config)
-        _assert_operator_grants(bundle, "599476212575", "OrganizationAccountAccessRole", "us-east-1")
+        _assert_bundle_fields(bundle)
         assert bundle["registeredAccounts"] == ["599476212575", "114594328247"]
         assert len(bundle["policies"]) == len(bundle["attachments"]) == 2
         for account, policy, attachment in zip(
@@ -2672,8 +2657,8 @@ class TestAuthzDelivery:
         assert "platformApi.authz.config is required" in failure.value.stderr
 
 
-class TestServiceOperatorDelivery:
-    def test_runtime_complete_operator_bundle(self, tmp_path, monkeypatch):
+class TestRuntimeIdentityDelivery:
+    def test_runtime_complete_bundle(self, tmp_path, monkeypatch):
         monkeypatch.delenv("BUILD_ID", raising=False)
         values = _authz_values(tmp_path, "ephemeral", {
             "aws": {"account_id": "012345678901", "child_admin_role_name": "platform/Provisioner"},
@@ -2686,23 +2671,10 @@ class TestServiceOperatorDelivery:
             "registeredAccounts": ["012345678901"],
             "policies": [],
             "attachments": [],
-            "serviceOperatorPolicies": [{
-                "id": "provision-management-clusters", "ownerAccountID": "012345678901",
-                "content": 'permit(principal, action in [Seaplane::Action::"CreateManagementCluster", Seaplane::Action::"ListManagementClusters", Seaplane::Action::"DescribeManagementCluster"], resource);\n',
-            }],
-            "serviceOperatorAttachments": [{
-                "id": "regional-provisioner", "policyID": "provision-management-clusters",
-                "principalARN": "arn:aws:iam::012345678901:role/platform/Provisioner",
-                "scope": "regional", "region": "us-east-1",
-            }],
         }
 
-    @pytest.mark.parametrize("env,role", [
-        ("ephemeral", "OrganizationAccountAccessRole"),
-        ("integration", "OrganizationAccountAccessRole"),
-        ("stage", "rosa-seaplane-account-admin"),
-    ])
-    def test_runtime_operator_delivery(self, tmp_path, env, role):
+    @pytest.mark.parametrize("env", ["ephemeral", "integration", "stage"])
+    def test_runtime_delivery(self, tmp_path, env):
         values = _authz_values(tmp_path, env)
         assert set(values["platformApi"]["authz"]) == {"config"}
         assert "ssm:///" not in values["platformApi"]["authz"]["config"]
@@ -2715,10 +2687,10 @@ class TestServiceOperatorDelivery:
         bundle = yaml.safe_load(config)
         assert bundle["registeredAccounts"] == ["012345678901"]
         assert bundle["policies"] == bundle["attachments"] == []
-        _assert_operator_grants(bundle, "012345678901", role, "us-east-1")
+        _assert_bundle_fields(bundle)
 
     @pytest.mark.parametrize("ci", [False, True])
-    def test_custom_pool_operator_grants(self, tmp_path, monkeypatch, ci):
+    def test_custom_pool_grants(self, tmp_path, monkeypatch, ci):
         monkeypatch.setenv("BUILD_ID", "test-ci" if ci else "")
         values = _authz_values(tmp_path, "ephemeral", {
             "aws": {"account_id": "012345678901", "child_admin_role_name": "team/CustomProvisioner"},
@@ -2726,7 +2698,7 @@ class TestServiceOperatorDelivery:
         assert "@@AWS_ACCOUNT_ID@@" not in values["platformApi"]["authz"]["config"]
         resources, _ = _helm_platform(tmp_path, values)
         bundle = yaml.safe_load(_resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"])
-        _assert_operator_grants(bundle, "012345678901", "team/CustomProvisioner", "eu-west-2")
+        _assert_bundle_fields(bundle)
         assert bundle["registeredAccounts"] == (
             ["720644165472", "313828097858", "012345678901"] if ci else ["012345678901"]
         )
@@ -2752,7 +2724,7 @@ class TestServiceOperatorDelivery:
         ("aws_region", 123), ("aws_region", ["us-east-1"]),
     ])
     def test_invalid_identity_fails(self, tmp_path, field, invalid):
-        values = _authz_values(tmp_path, "stage")
+        values = {"platformApi": {"authz": {"config": "# @@AWS_ACCOUNT_ID@@ @@AWS_REGION@@\n"}}}
         values["global"] = {"aws_account_id": "012345678901", "aws_region": "us-east-1"}
         values["global"][field] = invalid
         with pytest.raises(subprocess.CalledProcessError) as failure:
@@ -2771,8 +2743,6 @@ class TestServiceOperatorDelivery:
 
     def test_preserves_explicit_records(self, tmp_path):
         bundle = yaml.safe_load(AUTHZ_BUNDLE)
-        bundle["serviceOperatorPolicies"] = [{"id": "explicit", "ownerAccountID": "012345678901", "content": 'permit(principal, action == Seaplane::Action::"ListManagementClusters", resource);'}]
-        bundle["serviceOperatorAttachments"] = [{"id": "explicit-role", "policyID": "explicit", "principalARN": "arn:aws:iam::012345678901:role/Other", "scope": "regional", "region": "us-east-1"}]
         content = yaml.safe_dump(bundle, default_style='"')
         resources, _ = _helm_platform(tmp_path, {
             "global": {"aws_account_id": "ssm:///account", "aws_region": "invalid"},
@@ -2782,7 +2752,7 @@ class TestServiceOperatorDelivery:
         assert actual == content
         assert yaml.safe_load(actual) == bundle
 
-    @pytest.mark.parametrize("change", ["duplicateAccounts", "duplicatePolicies", "duplicateAttachments", "missingPartner", "nullPolicies"])
+    @pytest.mark.parametrize("change", ["duplicateAccounts", "duplicatePolicies", "duplicateAttachments", "nullPolicies"])
     def test_preserves_invalid_records(self, tmp_path, change):
         bundle = yaml.safe_load(AUTHZ_BUNDLE)
         if change == "duplicateAccounts":
@@ -2791,8 +2761,6 @@ class TestServiceOperatorDelivery:
             bundle["policies"] *= 2
         elif change == "duplicateAttachments":
             bundle["attachments"] *= 2
-        elif change == "missingPartner":
-            bundle["serviceOperatorPolicies"] = []
         else:
             bundle["policies"] = None
         content = yaml.safe_dump(bundle, default_style='"')
@@ -2801,7 +2769,7 @@ class TestServiceOperatorDelivery:
 
     @pytest.mark.parametrize("content", [
         'formatVersion: 1\nregisteredAccounts: ["@@AWS_ACCOUNT_ID@@"]\nregisteredAccounts: []\n',
-        'formatVersion: 1\nserviceOperatorPolicies:\n  - id: first\n    id: second\n    ownerAccountID: "@@AWS_ACCOUNT_ID@@"\n',
+        'formatVersion: 1\npolicies:\n  - id: first\n    id: second\n    ownerAccountID: "@@AWS_ACCOUNT_ID@@"\n',
         'formatVersion: 1\npolicies: [\n# @@AWS_ACCOUNT_ID@@ @@AWS_REGION@@\n',
         'formatVersion: 1\n# {{ .Values.global.aws_account_id }}\n# @@AWS_ACCOUNT_ID@@ @@AWS_REGION@@\n',
     ])
@@ -2813,22 +2781,11 @@ class TestServiceOperatorDelivery:
         actual = _resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"]
         assert actual == content.replace("@@AWS_ACCOUNT_ID@@", "012345678901").replace("@@AWS_REGION@@", "us-east-1")
 
-    @pytest.mark.parametrize("change", ["servicePolicy", "serviceAttachment", "account", "region"])
-    def test_operator_changes_checksum(self, tmp_path, change):
+    def test_account_changes_checksum(self, tmp_path):
         values = _authz_values(tmp_path, "stage")
         values["global"] = {"aws_account_id": "012345678901", "aws_region": "us-east-1"}
         before, _ = _helm_platform(tmp_path, values)
-        if change == "account":
-            values["global"]["aws_account_id"] = "987654321098"
-        elif change == "region":
-            values["global"]["aws_region"] = "us-west-2"
-        else:
-            original, replacement = (
-                ('Seaplane::Action::"CreateManagementCluster", ', "") if change == "servicePolicy"
-                else ("role/rosa-seaplane-account-admin", "role/Other")
-            )
-            assert original in values["platformApi"]["authz"]["config"]
-            values["platformApi"]["authz"]["config"] = values["platformApi"]["authz"]["config"].replace(original, replacement)
+        values["global"]["aws_account_id"] = "987654321098"
         after, _ = _helm_platform(tmp_path, values)
         annotation = lambda resources: _resource(resources, "Deployment", "platform-api")["spec"]["template"]["metadata"]["annotations"]
         assert annotation(before)["checksum/authz-config"] != annotation(after)["checksum/authz-config"]

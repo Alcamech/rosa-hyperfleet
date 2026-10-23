@@ -209,12 +209,7 @@ if [[ "${E2E_SKIP_PLATFORM_API}" == "true" ]]; then
   echo "=== Platform API Tests ==="
   echo "Skipped (E2E_SKIP_PLATFORM_API=${E2E_SKIP_PLATFORM_API})"
 else
-  source "${SCRIPT_DIR}/setup-service-operator-profile.sh"
-  if setup_operator_profile "${WORK_DIR}/aws_config"; then
-    make test-e2e-api || platform_rc=$?
-  else
-    platform_rc=1
-  fi
+  make test-e2e-api || platform_rc=$?
 fi
 
 # ZOA e2e coverage: rosa-seaplane-zoa owns its own e2e suite (test/e2e/).
