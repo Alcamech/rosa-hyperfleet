@@ -18,6 +18,7 @@ aws configure set region                "${TARGET_REGION}"                --prof
 export TF_VAR_central_aws_profile="central"
 
 export TF_VAR_zoa_access_trusted_assumer_role_names=$(jq -c '.zoa_access_trusted_assumer_role_names // []' "$DEPLOY_CONFIG_FILE")
+export TF_VAR_zoa_access_trusted_assumer_role_name_suffixes=$(jq -c '.zoa_access_trusted_assumer_role_name_suffixes // []' "$DEPLOY_CONFIG_FILE")
 
 # Fetch PagerDuty config if enabled
 _RAW_PD=$(jq -r '.enable_pagerduty // false' "$DEPLOY_CONFIG_FILE")

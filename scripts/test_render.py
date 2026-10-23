@@ -1560,6 +1560,45 @@ class TestMainIntegration:
         assert data["region"] == "us-east-1"
         assert data["_generated"].startswith("DO NOT EDIT")
 
+    def test_ephemeral_ci_omits_zoa_suffixes_in_regional_terraform_json(
+        self, tmp_path, monkeypatch
+    ):
+        """CI ephemeral (EPH_PREFIX + BUILD_ID) must not trust operator suffixes in ci00 central."""
+        monkeypatch.setenv("BUILD_ID", "prow-123")
+        deploy_dir = self._run_main(
+            tmp_path,
+            global_defaults={
+                "aws": {
+                    "account_id": "111111111111",
+                    "zoa_access_trusted_assumer_role_name_suffixes": [
+                        "rosa-seaplane-zoa-operator-dev",
+                    ],
+                },
+                "terraform_common": {
+                    "app_code": "infra",
+                    "service_phase": "dev",
+                    "cost_center": "000",
+                    "enable_bastion": False,
+                },
+            },
+            environments={
+                "ephemeral": {
+                    "defaults": {},
+                    "regions": {"us-east-1": {"provision_mcs": {}}},
+                }
+            },
+            eph_prefix="abc123",
+        )
+        tf_file = (
+            deploy_dir
+            / "ephemeral"
+            / "us-east-1"
+            / "pipeline-regional-cluster-inputs"
+            / "terraform.json"
+        )
+        data = json.loads(tf_file.read_text())
+        assert data["zoa_access_trusted_assumer_role_name_suffixes"] == []
+
     def test_pipeline_management_cluster_inputs_terraform_json(self, tmp_path):
         deploy_dir = self._run_main(
             tmp_path,

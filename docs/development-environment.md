@@ -301,7 +301,7 @@ This skips both the cleanup-labeled ginkgo specs and the `DeferCleanup` safety n
 
 ### ZOA testing
 
-ZOA e2e tests live in [`rosa-seaplane-zoa`](https://github.com/openshift-online/rosa-seaplane-zoa); this repo clones and runs them — it does not duplicate test logic.
+ZOA automated tests live in [`rosa-seaplane-zoa`](https://github.com/openshift-online/rosa-seaplane-zoa); this repo clones and runs them — it does not duplicate test logic. For laptop operator workflows, see [ZOA](#zoa).
 
 - **`make ephemeral-e2e`** — runs platform e2e plus ZOA **smoke** (`ci/e2e-tests.sh` clones `rosa-seaplane-zoa@main` and runs `test-e2e-smoke` when RC/MC Lambda URLs are available).
 - **`make ephemeral-zoa-e2e`** / **`make ephemeral-zoa-e2e-smoke`** — ZOA **full** or **smoke** only; same clone-by-ref pattern as API e2e (`ZOA_REF` / `ZOA_REPO`).
@@ -351,6 +351,20 @@ make ephemeral-resync
 
 # Explicit
 make ephemeral-resync ID=6bd2d3d7
+```
+
+## ZOA
+
+[Zero Operator Access](https://github.com/openshift-online/rosa-seaplane-zoa) is how you operate a running environment from your laptop: discover deployments and targets, start audited boundary sessions, and run trusted actions from inside the boundary. Use it after [provision](#provision) (and [resync](#resync) when you change ZOA images, Terraform, or invoker trust on your branch).
+
+1. Request ZOA operator roles in app-interface (see onboarding in the internal repo).
+2. `rh-aws-saml-login` into the central account for dev — [ZOA operator access](https://github.com/openshift-online/rosa-hyperfleet-internal/blob/main/docs/onboarding/zoa-operator-access.md) in the `rosa-seaplane-internal` sibling repo lists resolved commands per environment.
+3. Build or install the `zoa` CLI from [rosa-seaplane-zoa](https://github.com/openshift-online/rosa-seaplane-zoa).
+
+```bash
+zoa deployments
+zoa targets <deployment-id>
+zoa session start <deployment-id> <target-id> --reason <JIRA-or-PD>
 ```
 
 ## Swap Branch

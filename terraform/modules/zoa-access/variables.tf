@@ -53,13 +53,23 @@ variable "central_account_id" {
 }
 
 variable "trusted_assumer_role_names" {
-  description = "IAM role names in the Central Account allowed to assume the invoker role (full role ARNs are derived). Must be passed from environment config."
+  description = <<-EOT
+    Full IAM role names in the Central Account that may assume this invoker role (trust policy principals).
+    Pass through from environment config; ARNs are built as arn:aws:iam::<central_account_id>:role/<name>.
+  EOT
   type        = list(string)
+  default     = []
+}
 
-  validation {
-    condition     = length(var.trusted_assumer_role_names) > 0
-    error_message = "trusted_assumer_role_names must contain at least one role name."
-  }
+variable "trusted_assumer_role_name_suffixes" {
+  description = <<-EOT
+    App-interface role name suffixes (without the central account ID prefix). App-interface creates SAML
+    roles as "<central_account_id>-<suffix>"; suffixes are expanded here with var.central_account_id so
+    config does not hardcode the hub account ID. Combined with trusted_assumer_role_names before trust policy.
+    At least one name or suffix is required at apply; each expanded role must exist in central (IAM validates principals).
+  EOT
+  type        = list(string)
+  default     = []
 }
 
 variable "mc_account_ids" {

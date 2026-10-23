@@ -13,6 +13,8 @@ aws:
   child_admin_role_name: "rosa-seaplane-account-admin"
   zoa_access_trusted_assumer_role_names:
     - OrganizationAccountAccessRole
+  zoa_access_trusted_assumer_role_name_suffixes:
+    - rosa-seaplane-zoa-operator-stage
 
 dns:
   domain: stg0.rosa.devshift.org

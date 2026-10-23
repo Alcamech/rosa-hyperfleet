@@ -41,10 +41,14 @@ aws:
   # @doc aws.child_admin_role_name Name of the IAM role the pipelines assume in RC/MC child accounts for state-bucket bootstrap (hop 1) and infra apply (hop 2). Defaults to the AWS Organizations role; override per environment to use a scoped day-2 role.
   # @used-by aws.child_admin_role_name _context
   child_admin_role_name: "OrganizationAccountAccessRole"
-  # @doc aws.zoa_access_trusted_assumer_role_names IAM role names in the Central Account that may assume ZOA Access invoker roles in RC. No default — set explicitly per environment (e.g. ephemeral dev jump or SAML hub roles).
+  # @doc aws.zoa_access_trusted_assumer_role_names Full IAM role names in the Central Account allowed to assume ZOA Access invoker roles in RC (exact string as in IAM, e.g. OrganizationAccountAccessRole). Optional in defaults; environments with ZOA Access set at least one name or suffix. IAM requires each principal to exist in central at RC apply.
   # @used-by aws.zoa_access_trusted_assumer_role_names _context
   zoa_access_trusted_assumer_role_names:
   - OrganizationAccountAccessRole
+  # @doc aws.zoa_access_trusted_assumer_role_name_suffixes Suffix only (app-interface access role name field), not the full IAM role name. App-interface SAML roles in central are created as "<central_account_id>-<suffix>" so the account ID must not be hardcoded in git; RC Terraform prefixes each suffix with the central account ID from the aws.central provider at apply time. Optional in defaults; at least one name or suffix required per environment at apply. Only list suffixes for roles that exist in that environment's central account.
+  # @used-by aws.zoa_access_trusted_assumer_role_name_suffixes _context
+  zoa_access_trusted_assumer_role_name_suffixes:
+  - rosa-seaplane-zoa-operator-dev   # future: rosa-seaplane-zoa-operator-eph
 
 
 dns:
