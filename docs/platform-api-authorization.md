@@ -65,7 +65,8 @@ RC account.
   `us-east-1` to the CI callers in `720644165472` and `313828097858`. Rendering
   fails if the RC account is unresolved.
 - **Dev**: grants no customer access. Every customer e2e test then fails with 403.
-  To grant your dev roles, copy the example override before provisioning or
+  The quickest fix is to allowlist your customer account (see below). To grant
+  specific roles instead, copy the example override before provisioning or
   resyncing:
 
 ```sh
@@ -77,6 +78,32 @@ make ephemeral-resync ID=<id>
 The example enrolls RC `599476212575` and customer `114594328247` and grants each
 `OrganizationAccountAccessRole` `AllActions` in `us-east-1`. Merge any existing
 overrides first.
+
+## Allowlist an account (SOP)
+
+The temporary allowlist admits an account and gives it full access to its own
+resources, without a bundle change or rollout. It lives in seaplane-db and is
+replaced by DynamoDB policy storage. Only callers from the RC's own account may
+change it (`AWS_ACCOUNT_ID`, from `global.aws_account_id`).
+
+Ephemeral environments:
+
+```sh
+make ephemeral-post-account-shell ACCOUNT_ID=<12-digit-id> [ID=<env-id>]
+make ephemeral-delete-account-shell ACCOUNT_ID=<12-digit-id> [ID=<env-id>]
+```
+
+Integration and stage, with credentials for the RC account:
+
+```sh
+awscurl --service execute-api -X POST -H 'Content-Type: application/json' \
+  -d '{"accountId":"<12-digit-id>"}' "$API_URL/api/v0/accounts"
+awscurl --service execute-api -X DELETE "$API_URL/api/v0/accounts/<12-digit-id>"
+```
+
+Both calls are idempotent and return 204. Revocation takes effect on the next
+request. Platform API logs record each change as `account enrolled` or
+`account unenrolled` with the caller ARN.
 
 ## Customer label permissions
 

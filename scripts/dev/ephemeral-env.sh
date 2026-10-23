@@ -40,6 +40,8 @@ usage() {
     echo "  swap-branch     Swap an ephemeral environment to a different branch"
     echo "  list            List ephemeral environments"
     echo "  shell           Interactive shell for Platform API access"
+    echo "  post-account    Allowlist a customer AWS account with the RC platform API"
+    echo "  delete-account  Revoke an allowlisted customer AWS account"
     echo "  bastion         Connect to RC/MC bastion in an ephemeral env"
     echo "  port-forward    Forward ports through RC/MC bastion in an ephemeral env"
     echo "  sre-ui          Tunnel SRE UI tools through the internal ALB via bastion"
@@ -693,6 +695,39 @@ cmd_list() {
     echo "To clear list: rm $ENVS_FILE"
 }
 
+# Allowlist (POST) or revoke (DELETE) a customer account as the RC account, the only caller the API accepts.
+cmd_account_allowlist() {
+    local method="$1"
+    [[ "${ACCOUNT_ID:-}" =~ ^[0-9]{12}$ ]] || die "ACCOUNT_ID must be a 12-digit AWS account ID"
+
+    select_env "STATE=ready" \
+        "Select environment:" \
+        "No ready environments found." \
+        true
+
+    local api_url region
+    api_url=$(get_field "$ENV_LINE" API_URL)
+    region=$(get_field "$ENV_LINE" REGION)
+
+    setup_aws_config
+    write_eph_container_config
+
+    local request=(-X DELETE "$api_url/api/v0/accounts/$ACCOUNT_ID")
+    if [[ "$method" == "POST" ]]; then
+        request=(-X POST -H "Content-Type: application/json" -d "{\"accountId\":\"$ACCOUNT_ID\"}" "$api_url/api/v0/accounts")
+    fi
+
+    # shellcheck disable=SC2086
+    $CONTAINER_ENGINE run --rm \
+        $_CONTAINER_AWS_FLAGS \
+        -e "AWS_PROFILE=rrp-rc" \
+        -e "AWS_DEFAULT_REGION=$region" \
+        -e "AWS_REGION=$region" \
+        "$CI_IMAGE" \
+        awscurl --service execute-api --fail-with-body "${request[@]}"
+    echo "==> $method account $ACCOUNT_ID: done"
+}
+
 cmd_shell() {
     # Select environment (ready only)
     select_env "STATE=ready" \
@@ -1281,7 +1316,7 @@ case "${1:-help}" in
             command -v "$tool" >/dev/null 2>&1 || die "Missing required tool: $tool"
         done
         ;;
-    shell|e2e|zoa-e2e)
+    shell|e2e|zoa-e2e|post-account|delete-account)
         preflight
         ensure_image
         ;;
@@ -1298,6 +1333,8 @@ case "${1:-help}" in
     resync)         cmd_resync ;;
     swap-branch)    cmd_swap_branch ;;
     shell)          cmd_shell ;;
+    post-account)   cmd_account_allowlist POST ;;
+    delete-account) cmd_account_allowlist DELETE ;;
     bastion)        shift; cmd_bastion_interactive "$@" ;;
     port-forward)   shift; cmd_bastion_port_forward "$@" ;;
     sre-ui)         cmd_sre_tunnel ;;

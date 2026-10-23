@@ -56,6 +56,9 @@ spec:
               value: {{ .Values.global.aws_region | quote }}
             - name: AUTHZ_CONFIG_FILE
               value: /etc/platform-api/authz/config.yaml
+            # The only account that may change the temporary account allowlist.
+            - name: AWS_ACCOUNT_ID
+              value: {{ .Values.global.aws_account_id | quote }}
             # "id:account" pairs platform-api registers on startup.
             - name: MANAGEMENT_CLUSTERS
               value: {{ .Values.global.management_clusters | default "" | quote }}
