@@ -1,6 +1,8 @@
 aws:
   zoa_access_trusted_assumer_role_names:
     - OrganizationAccountAccessRole
+  zoa_access_trusted_assumer_role_name_suffixes:
+    - rosa-seaplane-zoa-operator-int
 
 dns:
   domain: int0.rosa.devshift.net
