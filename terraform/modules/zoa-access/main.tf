@@ -134,13 +134,19 @@ resource "aws_lambda_permission" "invoker_invoke_function" {
 # =============================================================================
 # Central-Trusted Invoker Role — Cross-Account SRE Access
 # =============================================================================
-# SREs use credentials in the environment Central Account (today
-# OrganizationAccountAccessRole via dev profiles; future scoped SAML role),
+# SREs use Central Account credentials (pipeline role or SAML hub roles),
 # then assume this role in the RC account to call the Function URL.
 
 locals {
+  trusted_assumer_role_names = concat(
+    var.trusted_assumer_role_names,
+    [
+      for suffix in var.trusted_assumer_role_name_suffixes :
+      "${var.central_account_id}-${suffix}"
+    ]
+  )
   trusted_assumer_principal_arns = [
-    for role_name in var.trusted_assumer_role_names :
+    for role_name in local.trusted_assumer_role_names :
     "arn:aws:iam::${var.central_account_id}:role/${role_name}"
   ]
 }
@@ -148,6 +154,13 @@ locals {
 resource "aws_iam_role" "invoker" {
   name        = "${local.function_name}-invoker"
   description = "Central-trusted role for SRE access to ZOA Access Lambda Function URL in ${var.regional_id}"
+
+  lifecycle {
+    precondition {
+      condition     = length(local.trusted_assumer_role_names) > 0
+      error_message = "At least one trusted_assumer_role_names or trusted_assumer_role_name_suffixes entry is required. IAM rejects trust policies with missing principals; each name must exist in the central account."
+    }
+  }
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

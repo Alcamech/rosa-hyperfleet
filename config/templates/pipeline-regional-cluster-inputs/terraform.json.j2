@@ -45,6 +45,7 @@
   "zoa_lambda_worker_concurrency": {{ regional_cluster.zoa_lambda_worker_concurrency | tojson }},
   "zoa_lambda_access_concurrency": {{ regional_cluster.zoa_lambda_access_concurrency | tojson }},
   "zoa_access_trusted_assumer_role_names": {{ zoa_access_trusted_assumer_role_names | tojson }},
+  "zoa_access_trusted_assumer_role_name_suffixes": {{ zoa_access_trusted_assumer_role_name_suffixes | tojson }},
   "worker_node_ami_id": {% if worker_node_ami %}{{ worker_node_ami.id | tojson }}{% else %}""{% endif %},
   "worker_node_root_volume_size": {{ worker_node_root_volume_size | default(50) | tojson }}
 {%- set _mc_info = [] %}
