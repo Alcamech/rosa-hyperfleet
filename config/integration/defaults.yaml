@@ -1,8 +1,12 @@
 aws:
   zoa_access_trusted_assumer_role_names:
     - OrganizationAccountAccessRole
-  zoa_access_trusted_assumer_role_name_suffixes:
-    - rosa-seaplane-zoa-operator-int
+  # TEMP: integration is being recreated on the new Hyperfleet AWS accounts. App-interface
+  # already provisions the ZOA operator SAML role on rosa-hyperfleet-int-control, but RC
+  # apply still runs against the legacy pipeline central (rrp-int-control), so the
+  # suffix would reference a principal that does not exist there. Omit until central
+  # accounts and pipelines align; restore rosa-seaplane-zoa-operator-int soon.
+  zoa_access_trusted_assumer_role_name_suffixes: []
 
 dns:
   domain: int0.rosa.devshift.net
