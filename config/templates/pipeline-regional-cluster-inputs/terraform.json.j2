@@ -45,7 +45,7 @@
   "zoa_lambda_worker_concurrency": {{ regional_cluster.zoa_lambda_worker_concurrency | tojson }},
   "zoa_lambda_access_concurrency": {{ regional_cluster.zoa_lambda_access_concurrency | tojson }},
   "zoa_access_trusted_assumer_role_names": {{ zoa_access_trusted_assumer_role_names | tojson }},
-  "zoa_access_trusted_assumer_role_name_suffixes": {{ zoa_access_trusted_assumer_role_name_suffixes | tojson }},
+  "zoa_access_trusted_assumer_role_name_suffixes": {% if ci %}[]{% else %}{{ zoa_access_trusted_assumer_role_name_suffixes | tojson }}{% endif %},{# Ephemeral dev (dev0) and CI (ci00) share config/ephemeral defaults; central IAM roles differ per pool. Trust policy principals must exist in that pool's central account at apply time (invalid principal fails RC apply). ci=true (EPH_PREFIX + BUILD_ID): omit suffixes — CI central has no operator SAML role; dev suffixes stay for local ephemeral without BUILD_ID. #}
   "worker_node_ami_id": {% if worker_node_ami %}{{ worker_node_ami.id | tojson }}{% else %}""{% endif %},
   "worker_node_root_volume_size": {{ worker_node_root_volume_size | default(50) | tojson }}
 {%- set _mc_info = [] %}
