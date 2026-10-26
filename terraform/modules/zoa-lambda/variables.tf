@@ -237,6 +237,17 @@ variable "session_idle_timeout_seconds" {
   default     = 3600
 }
 
+variable "session_stale_creating_seconds" {
+  description = "How long a boundary session may remain in creating before the worker reaper terminates the row (and stops ECS if task_arn is set). Used when sessions_table_name is set."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.session_stale_creating_seconds >= 60 && var.session_stale_creating_seconds <= 86400
+    error_message = "session_stale_creating_seconds must be between 60 and 86400."
+  }
+}
+
 variable "deployment_name" {
   description = "Deployment name (e.g. us-east-1, us-east-1-eph-abc123). Boundary ECS env; included in RC SSM target JSON when targets_ssm_prefix is set."
   type        = string

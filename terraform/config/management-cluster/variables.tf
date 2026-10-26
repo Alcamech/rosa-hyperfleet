@@ -198,6 +198,17 @@ variable "zoa_boundary_session_idle_timeout_seconds" {
   }
 }
 
+variable "zoa_boundary_session_stale_creating_seconds" {
+  description = "Max time (seconds) a session may stay in creating before the MC worker reaper cleans it up. Must match RC deploy config (SESSION_STALE_CREATING_SECONDS)."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.zoa_boundary_session_stale_creating_seconds >= 60 && var.zoa_boundary_session_stale_creating_seconds <= 86400
+    error_message = "zoa_boundary_session_stale_creating_seconds must be between 60 and 86400."
+  }
+}
+
 variable "zoa_lambda_api_concurrency" {
   description = "Reserved concurrency for ZOA API Lambda on MC (-1 = unreserved). Same deploy key as RC (regional_cluster in config hierarchy); see config/defaults.yaml."
   type        = number
