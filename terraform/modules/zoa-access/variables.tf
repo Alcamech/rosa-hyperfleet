@@ -95,7 +95,7 @@ variable "session_max_duration_hours" {
 }
 
 variable "session_idle_timeout_seconds" {
-  description = "Terminal inactivity (seconds) before the boundary reaper stops the task. Set from regional-cluster zoa_boundary_session_idle_timeout_seconds (same value as module.zoa-lambda worker)."
+  description = "Idle window (seconds) for MOTD on the boundary task and for the Worker idle reaper on active sessions. Set from regional_cluster.zoa_boundary_session_idle_timeout_seconds (same value as module.zoa-lambda worker SESSION_IDLE_TIMEOUT_SECONDS)."
   type        = number
   default     = 3600
 }

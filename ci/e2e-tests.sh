@@ -82,6 +82,19 @@ else
 fi
 [[ -n "${ZOA_MC_API_URL:-}" ]] && export ZOA_MC_API_URL && echo "ZOA MC API URL: ${ZOA_MC_API_URL}"
 
+# ZOA deployment name for Access e2e (ephemeral: from regional terraform output).
+if [[ -z "${ZOA_DEPLOYMENT_NAME:-}" ]]; then
+  if [[ -r "${CREDS_DIR}/zoa_deployment_name" ]]; then
+    ZOA_DEPLOYMENT_NAME="$(cat "${CREDS_DIR}/zoa_deployment_name")"
+  elif [[ -n "${TF_OUTPUTS:-}" && -r "${TF_OUTPUTS:-}" ]]; then
+    ZOA_DEPLOYMENT_NAME="$(jq -r '.deployment_name.value // empty' "${TF_OUTPUTS}")"
+  fi
+fi
+if [[ -n "${ZOA_DEPLOYMENT_NAME:-}" ]]; then
+  export ZOA_DEPLOYMENT_NAME
+  echo "ZOA deployment name: ${ZOA_DEPLOYMENT_NAME}"
+fi
+
 # Use the regional account profile for authenticated API calls
 export AWS_PROFILE="rrp-rc"
 export AWS_DEFAULT_REGION="${AWS_REGION:-us-east-1}"

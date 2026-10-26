@@ -87,6 +87,17 @@ Lambda hard timeout (300s) > Code-level deadline (env var) > Per-TA TimeoutSecon
 
 All deadlines are tunable via environment variables without code change. For async TAs, the reconciler adds `ASYNC_SCHEDULING_OVERHEAD_SECONDS` (default 180s) to account for GSI propagation + reconciler cadence + Job scheduling.
 
+## Boundary session reaper (Worker)
+
+When `sessions_table_name` is set, the Worker **`reaper`** route (EventBridge, typically every 5 minutes) enforces three policies in order: **deadline**, **stale `creating`**, **idle**. Behavior and `stop_reason` values: [rosa-seaplane-zoa session reaper](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md).
+
+| Module input (`variables.tf`)    | Worker Lambda env                | Source in `config/defaults.yaml` (regional_cluster) |
+| -------------------------------- | -------------------------------- | --------------------------------------------------- |
+| `session_idle_timeout_seconds`   | `SESSION_IDLE_TIMEOUT_SECONDS`   | `zoa_boundary_session_idle_timeout_seconds`         |
+| `session_stale_creating_seconds` | `SESSION_STALE_CREATING_SECONDS` | `zoa_boundary_session_stale_creating_seconds`       |
+
+Session **max duration** (`SESSION_MAX_DURATION_HOURS` at Access on `session start`) is configured in **`zoa-access`**, not on the Worker. Runtime env catalog: [ZOA implementation — pkg/config](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md#pkgconfig--environment-configuration).
+
 ## EKS Access
 
 Currently uses `AmazonEKSClusterAdminPolicy` via EKS access entry. Future: fine-grained ClusterRole + Role via Terraform Kubernetes provider (blocked by CodeBuild private networking constraints).

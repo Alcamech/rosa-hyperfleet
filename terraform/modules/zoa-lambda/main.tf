@@ -55,8 +55,9 @@ locals {
       SEAPLANE_DB_USERNAME = var.seaplane_db_username
     } : {},
     var.sessions_table_name != "" ? {
-      SESSIONS_TABLE               = var.sessions_table_name
-      SESSION_IDLE_TIMEOUT_SECONDS = tostring(var.session_idle_timeout_seconds)
+      SESSIONS_TABLE                 = var.sessions_table_name
+      SESSION_IDLE_TIMEOUT_SECONDS   = tostring(var.session_idle_timeout_seconds)
+      SESSION_STALE_CREATING_SECONDS = tostring(var.session_stale_creating_seconds)
   } : {})
 
   common_tags = {

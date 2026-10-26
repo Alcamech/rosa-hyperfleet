@@ -550,6 +550,17 @@ variable "zoa_boundary_session_max_duration_hours" {
   }
 }
 
+variable "zoa_boundary_session_stale_creating_seconds" {
+  description = "Max time (seconds) a session may stay in creating before the worker reaper cleans it up. Passed to module.zoa_lambda only (SESSION_STALE_CREATING_SECONDS)."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.zoa_boundary_session_stale_creating_seconds >= 60 && var.zoa_boundary_session_stale_creating_seconds <= 86400
+    error_message = "zoa_boundary_session_stale_creating_seconds must be between 60 and 86400."
+  }
+}
+
 variable "zoa_lambda_api_concurrency" {
   description = "Reserved concurrency for ZOA API Lambda (-1 = unreserved). Authoritative values: config/defaults.yaml (regional_cluster); ephemeral override in config/ephemeral/defaults.yaml. Set at apply time via TF_VAR from rendered deploy JSON."
   type        = number

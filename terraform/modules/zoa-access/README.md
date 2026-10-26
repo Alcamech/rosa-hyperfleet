@@ -19,4 +19,13 @@ On **destroy**, this module is removed first (function + policies), then `zoa-la
 
 MC stacks do **not** call this module; MC boundary trust uses **`zoa_access_lambda_role_arn`** from RC Terraform state (read by `provision-infra-mc.sh` after RC apply). RC Access STS `AssumeRole` uses per-MC account id + `*-zoa-boundary-*` role name patterns from `management_clusters`.
 
+## Session policy env (Access Lambda)
+
+| Module input                   | Access Lambda env              | Purpose                                                                                                       |
+| ------------------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `session_max_duration_hours`   | `SESSION_MAX_DURATION_HOURS`   | Default **`deadline`** written at `session start`                                                             |
+| `session_idle_timeout_seconds` | `SESSION_IDLE_TIMEOUT_SECONDS` | Passed into boundary task env for MOTD (`ZOA_SESSION_IDLE_TIMEOUT_SECONDS`); same value as Worker idle reaper |
+
+**Stale `creating`** reaper tuning (`SESSION_STALE_CREATING_SECONDS`) is **Worker-only** — see [`../zoa-lambda/README.md`](../zoa-lambda/README.md#boundary-session-reaper-worker). Reaper behavior: [session reaper](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md).
+
 See also [`../zoa-lambda/README.md`](../zoa-lambda/README.md).

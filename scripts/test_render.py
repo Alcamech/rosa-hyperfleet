@@ -87,6 +87,7 @@ def _create_config_structure(
             "zoa_runner_source_image": "quay.io/rrp-dev-ci/zoa-runner",
             "zoa_boundary_source_image": "quay.io/rrp-dev-ci/zoa-boundary",
             "zoa_boundary_session_idle_timeout_seconds": 3600,
+            "zoa_boundary_session_stale_creating_seconds": 900,
             "zoa_boundary_session_max_duration_hours": 4,
             "zoa_lambda_api_concurrency": 50,
             "zoa_lambda_worker_concurrency": 10,
