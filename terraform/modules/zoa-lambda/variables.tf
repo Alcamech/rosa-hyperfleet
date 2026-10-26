@@ -232,7 +232,7 @@ variable "sessions_table_name" {
 }
 
 variable "session_idle_timeout_seconds" {
-  description = "Terminal inactivity (seconds) before the boundary reaper stops an active session. Used when sessions_table_name is set."
+  description = "Idle window (seconds) before the Worker idle reaper stops an active boundary session (SESSION_IDLE_TIMEOUT_SECONDS). Used when sessions_table_name is set. Stale creating uses session_stale_creating_seconds."
   type        = number
   default     = 3600
 }
