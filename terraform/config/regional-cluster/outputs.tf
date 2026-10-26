@@ -456,3 +456,8 @@ output "zoa_api_function_url" {
   description = "Function URL for the ZOA API Lambda (used by ZOA boundary tasks and CLI)"
   value       = module.zoa_lambda.api_function_url
 }
+
+output "deployment_name" {
+  description = "Logical deployment name (ZOA Access/SSM discovery, DNS). Same value passed to module.zoa_access."
+  value       = var.deployment_name
+}
