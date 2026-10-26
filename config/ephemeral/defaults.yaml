@@ -71,12 +71,14 @@ applications:
               ownerAccountID: "720644165472"
               content: |
                 permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "720644165472" && context.region == "us-east-1" };
+                when { context.accountId == "720644165472" && context.region == "us-east-1" }
+                unless { context.requestLabels.hasTag("authz-deny-probe") };
             - id: ci-read-clusters-313828097858
               ownerAccountID: "313828097858"
               content: |
                 permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "313828097858" && context.region == "us-east-1" };
+                when { context.accountId == "313828097858" && context.region == "us-east-1" }
+                unless { context.requestLabels.hasTag("authz-deny-probe") };
           attachments:
             - id: ci-readers-720644165472
               policyID: ci-read-clusters-720644165472

@@ -2520,7 +2520,8 @@ class TestAuthzDelivery:
             assert policy == {
                 "id": f"ci-read-clusters-{account}", "ownerAccountID": account,
                 "content": 'permit(principal, action in Seaplane::Action::"AllActions", resource)\n'
-                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }};\n',
+                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }}\n'
+                           'unless { context.requestLabels.hasTag("authz-deny-probe") };\n',
             }
             assert attachment == {
                 "id": f"ci-readers-{account}", "policyID": policy["id"],
@@ -2572,7 +2573,8 @@ class TestAuthzDelivery:
             assert policy == {
                 "id": f"read-clusters-{account}", "ownerAccountID": account,
                 "content": 'permit(principal, action in Seaplane::Action::"AllActions", resource)\n'
-                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }};\n',
+                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }}\n'
+                           'unless { context.requestLabels.hasTag("authz-deny-probe") };\n',
             }
             assert attachment == {
                 "id": f"dev-readers-{account}", "policyID": policy["id"],
