@@ -575,8 +575,8 @@ module "zoa_lambda" {
   vpc_id              = module.regional_cluster.vpc_id
   boundary_image      = var.zoa_boundary_image
 
-  session_idle_timeout_seconds     = var.zoa_boundary_session_idle_timeout_seconds
-  session_stale_creating_seconds   = var.zoa_boundary_session_stale_creating_seconds
+  session_idle_timeout_seconds   = var.zoa_boundary_session_idle_timeout_seconds
+  session_stale_creating_seconds = var.zoa_boundary_session_stale_creating_seconds
 
   lambda_api_concurrency    = var.zoa_lambda_api_concurrency
   lambda_worker_concurrency = var.zoa_lambda_worker_concurrency
