@@ -265,53 +265,27 @@ applications:
     baseDomain: "{% if dns.domain %}{{ deployment_name }}.{{ dns.domain }}{% endif %}"
     platformApi:
       authz:
-        # @doc applications.regional-cluster.platformApi.authz.config Complete serialized v1 authorization bundle. Enrolls the RC account (@@AWS_ACCOUNT_ID@@, resolved by Helm) and grants nothing. Overrides replace the entire bundle.
+        # @doc applications.regional-cluster.platformApi.authz.config Complete serialized v1 authorization bundle. Enrolls the RC account (@@AWS_ACCOUNT_ID@@, resolved by Helm) and grants the identities behind rrp-rc (the child-admin role; CI's e2e user) AllActions on the RC account's own resources, except the authz deny probe. Customer accounts are allowlisted at runtime. Overrides replace the entire bundle.
         # @used-by applications.regional-cluster.platformApi.authz.config _context
         config: |
-          {% set operator_account = account_id if account_id is string and account_id | length == 12 and account_id.isascii() and account_id.isdigit() else "@@AWS_ACCOUNT_ID@@" -%}
-          {% set registered_accounts = ["720644165472", "313828097858"] if ci else [] -%}
           formatVersion: 1
-
-          registeredAccounts: {{ (registered_accounts + [operator_account]) | unique | list | tojson }}
-          {% if ci -%}
+          registeredAccounts: ["@@AWS_ACCOUNT_ID@@"]
           policies:
-            - id: ci-read-clusters-720644165472
-              ownerAccountID: "720644165472"
+            - id: rc-all-actions
+              ownerAccountID: "@@AWS_ACCOUNT_ID@@"
               content: |
                 permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "720644165472" && context.region == "us-east-1" }
-                unless { context.requestLabels.hasTag("authz-deny-probe") };
-            - id: ci-read-clusters-313828097858
-              ownerAccountID: "313828097858"
-              content: |
-                permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "313828097858" && context.region == "us-east-1" }
+                when { context.accountId == "@@AWS_ACCOUNT_ID@@" }
                 unless { context.requestLabels.hasTag("authz-deny-probe") };
           attachments:
-            - id: ci-readers-720644165472
-              policyID: ci-read-clusters-720644165472
-              principalARN: arn:aws:iam::720644165472:role/{{ aws.child_admin_role_name }}
-              scope: regional
-              region: us-east-1
-            - id: ci-readers-313828097858
-              policyID: ci-read-clusters-313828097858
-              principalARN: arn:aws:iam::313828097858:role/{{ aws.child_admin_role_name }}
-              scope: regional
-              region: us-east-1
-            - id: ci-e2e-720644165472
-              policyID: ci-read-clusters-720644165472
-              principalARN: arn:aws:iam::720644165472:user/e2e
-              scope: regional
-              region: us-east-1
-            - id: ci-e2e-313828097858
-              policyID: ci-read-clusters-313828097858
-              principalARN: arn:aws:iam::313828097858:user/rrp-hcp-customer
-              scope: regional
-              region: us-east-1
-          {%- else -%}
-          policies: []
-          attachments: []
-          {%- endif %}
+            - id: rc-child-admin
+              policyID: rc-all-actions
+              principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:role/{{ aws.child_admin_role_name }}
+              scope: global
+            - id: rc-e2e-user
+              policyID: rc-all-actions
+              principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:user/e2e
+              scope: global
       app:
         args:
           # @doc applications.regional-cluster.platformApi.app.args.defaultClusterExpiration Maps cluster_lifecycle.default_expiration into the platform-api --default-cluster-expiration flag.

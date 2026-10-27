@@ -32,6 +32,32 @@ make install
 command -v jq >/dev/null || echo "Need jq installed"
 ```
 
+### Account Allowlisting
+
+Your AWS account must be allowlisted before you can create clusters. Ask `@rrp-team-ic` in `#team-rosa-seaplane` to allowlist your account — provide your **AWS account ID** and the target **environment** (e.g. integration). This is a one-time step per account per environment. Accounts allowlisted before the Cedar authorization rollout must be allowlisted again.
+
+In an ephemeral environment, allowlist it yourself:
+
+```bash
+make ephemeral-post-account-shell ACCOUNT_ID=<account-id>
+```
+
+<details>
+<summary>IC reference: allowlisting command</summary>
+
+Run from a platform API shell (`make int-shell` or `make stage-shell`), which signs as the RC account:
+
+```bash
+awscurl --service execute-api --region "$REGION" \
+  -X POST "$API_URL/api/v0/accounts" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "<account-id>"}'
+```
+
+Returns 204. Revoke with `DELETE $API_URL/api/v0/accounts/<account-id>`. See [Platform API authorization](platform-api-authorization.md#allowlist-an-account-sop).
+
+</details>
+
 ## Set Up
 
 ```bash
