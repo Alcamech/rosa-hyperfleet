@@ -204,7 +204,7 @@ terraform init -reconfigure \
 
 terraform output -raw api_test_command
 # Then run the output command, e.g.:
-# awscurl --service execute-api --region us-east-2 https://<id>.execute-api.<region>.amazonaws.com/prod/v0/live
+# awscurl --service execute-api --region us-east-2 https://<id>.execute-api.<region>.amazonaws.com/prod/api/v0/live
 ```
 
 > **Note:** API Gateway authenticates callers with AWS IAM. The Platform API uses the caller account identity forwarded by API Gateway when handling account-scoped resources.

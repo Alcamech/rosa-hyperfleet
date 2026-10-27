@@ -41,11 +41,18 @@ aws:
   # @doc aws.child_admin_role_name Name of the IAM role the pipelines assume in RC/MC child accounts for state-bucket bootstrap (hop 1) and infra apply (hop 2). Defaults to the AWS Organizations role; override per environment to use a scoped day-2 role.
   # @used-by aws.child_admin_role_name _context
   child_admin_role_name: "OrganizationAccountAccessRole"
-  # @doc aws.zoa_access_trusted_assumer_role_names IAM role names in the Central Account that may assume ZOA Access invoker roles in RC. No default — set explicitly per environment (e.g. ephemeral dev jump or SAML hub roles).
+  # @doc aws.zoa_access_trusted_assumer_role_names Full IAM role names in the Central Account allowed to assume ZOA Access invoker roles in RC (exact string as in IAM, e.g. OrganizationAccountAccessRole). Optional in defaults; environments with ZOA Access set at least one name or suffix. IAM requires each principal to exist in central at RC apply.
   # @used-by aws.zoa_access_trusted_assumer_role_names _context
   zoa_access_trusted_assumer_role_names:
   - OrganizationAccountAccessRole
-
+  # TEMP: integration is being recreated on the new Hyperfleet AWS accounts. App-interface
+  # already provisions the ZOA operator SAML role on rosa-hyperfleet-int-control, but RC
+  # apply still runs against the legacy pipeline central (rrp-int-control), so the
+  # suffix would reference a principal that does not exist there. Omit until central
+  # accounts and pipelines align; restore rosa-seaplane-zoa-operator-int soon.
+  # @doc aws.zoa_access_trusted_assumer_role_name_suffixes Suffix only (app-interface access role name field), not the full IAM role name. App-interface SAML roles in central are created as "<central_account_id>-<suffix>" so the account ID must not be hardcoded in git; RC Terraform prefixes each suffix with the central account ID from the aws.central provider at apply time. Optional in defaults; at least one name or suffix required per environment at apply. Only list suffixes for roles that exist in that environment's central account.
+  # @used-by aws.zoa_access_trusted_assumer_role_name_suffixes _context
+  zoa_access_trusted_assumer_role_name_suffixes: []
 
 dns:
   # @doc dns.domain Base domain for the environment. Must be set per environment. See config/ephemeral/defaults.yaml for how the ephemeral template selects between CI and dev account pools.
@@ -153,11 +160,11 @@ regional_cluster:
   # @doc regional_cluster.zoa_lambda_image_tag Immutable tag for the ZOA Lambda image. Defaults to a known-good Konflux on-push build. Override via --provision-override-file for ephemeral e2e with a CI-built tag (e.g. ci-<PR>-<BUILD_ID>).
   # @used-by regional_cluster.zoa_lambda_image_tag pipeline-management-cluster-inputs/terraform.json.j2
   # @used-by regional_cluster.zoa_lambda_image_tag pipeline-regional-cluster-inputs/terraform.json.j2
-  zoa_lambda_image_tag: "3e94eef"
+  zoa_lambda_image_tag: "f8fb152"
   # @doc regional_cluster.zoa_runner_image_tag Immutable tag for the ZOA Runner image. Defaults to same Konflux build as Lambda. Override independently when testing a new runner with the current Lambda (or vice versa).
   # @used-by regional_cluster.zoa_runner_image_tag pipeline-management-cluster-inputs/terraform.json.j2
   # @used-by regional_cluster.zoa_runner_image_tag pipeline-regional-cluster-inputs/terraform.json.j2
-  zoa_runner_image_tag: "3e94eef"
+  zoa_runner_image_tag: "f8fb152"
   # @doc regional_cluster.zoa_lambda_source_image Source registry image for the ZOA Lambda (mirrored to ECR at deploy time). Override together with zoa_lambda_image_tag when pointing at a fork or CI registry (e.g. quay.io/rrp-dev-ci/zoa-lambda).
   # @used-by regional_cluster.zoa_lambda_source_image pipeline-regional-cluster-inputs/terraform.json.j2
   zoa_lambda_source_image: "quay.io/rrp-dev-ci/zoa-lambda"
@@ -168,7 +175,7 @@ regional_cluster:
   # @doc regional_cluster.zoa_boundary_image_tag Immutable tag for the ZOA Boundary ECS image. Required; same commit tag as Lambda/Runner when bumped together.
   # @used-by regional_cluster.zoa_boundary_image_tag pipeline-management-cluster-inputs/terraform.json.j2
   # @used-by regional_cluster.zoa_boundary_image_tag pipeline-regional-cluster-inputs/terraform.json.j2
-  zoa_boundary_image_tag: "3e94eef"
+  zoa_boundary_image_tag: "f8fb152"
   # @doc regional_cluster.zoa_boundary_source_image Source registry image for ZOA Boundary (pulled directly by ECS). Override together with zoa_boundary_image_tag when pointing at a fork or CI registry.
   # @used-by regional_cluster.zoa_boundary_source_image pipeline-management-cluster-inputs/terraform.json.j2
   # @used-by regional_cluster.zoa_boundary_source_image pipeline-regional-cluster-inputs/terraform.json.j2
@@ -177,6 +184,10 @@ regional_cluster:
   # @used-by regional_cluster.zoa_boundary_session_idle_timeout_seconds pipeline-regional-cluster-inputs/terraform.json.j2
   # @used-by regional_cluster.zoa_boundary_session_idle_timeout_seconds pipeline-management-cluster-inputs/terraform.json.j2
   zoa_boundary_session_idle_timeout_seconds: 3600
+  # @doc regional_cluster.zoa_boundary_session_stale_creating_seconds Max seconds a session may stay in creating before the worker reaper terminates it (SESSION_STALE_CREATING_SECONDS on zoa-lambda worker).
+  # @used-by regional_cluster.zoa_boundary_session_stale_creating_seconds pipeline-regional-cluster-inputs/terraform.json.j2
+  # @used-by regional_cluster.zoa_boundary_session_stale_creating_seconds pipeline-management-cluster-inputs/terraform.json.j2
+  zoa_boundary_session_stale_creating_seconds: 900
   # @doc regional_cluster.zoa_boundary_session_max_duration_hours Default/max boundary session length (hours). RC zoa-access only (deadline in Dynamo + ZOA_SESSION_DEADLINE on task).
   # @used-by regional_cluster.zoa_boundary_session_max_duration_hours pipeline-regional-cluster-inputs/terraform.json.j2
   zoa_boundary_session_max_duration_hours: 4

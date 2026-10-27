@@ -40,11 +40,13 @@
   "zoa_boundary_image_tag": {{ regional_cluster.zoa_boundary_image_tag | tojson }},
   "zoa_boundary_source_image": {{ regional_cluster.zoa_boundary_source_image | tojson }},
   "zoa_boundary_session_idle_timeout_seconds": {{ regional_cluster.zoa_boundary_session_idle_timeout_seconds | default(3600) | tojson }},
+  "zoa_boundary_session_stale_creating_seconds": {{ regional_cluster.zoa_boundary_session_stale_creating_seconds | default(900) | tojson }},
   "zoa_boundary_session_max_duration_hours": {{ regional_cluster.zoa_boundary_session_max_duration_hours | default(4) | tojson }},
   "zoa_lambda_api_concurrency": {{ regional_cluster.zoa_lambda_api_concurrency | tojson }},
   "zoa_lambda_worker_concurrency": {{ regional_cluster.zoa_lambda_worker_concurrency | tojson }},
   "zoa_lambda_access_concurrency": {{ regional_cluster.zoa_lambda_access_concurrency | tojson }},
   "zoa_access_trusted_assumer_role_names": {{ zoa_access_trusted_assumer_role_names | tojson }},
+  "zoa_access_trusted_assumer_role_name_suffixes": {% if ci %}[]{% else %}{{ zoa_access_trusted_assumer_role_name_suffixes | tojson }}{% endif %},{# Ephemeral dev (dev0) and CI (ci00) share config/ephemeral defaults; central IAM roles differ per pool. Trust policy principals must exist in that pool's central account at apply time (invalid principal fails RC apply). ci=true (EPH_PREFIX + BUILD_ID): omit suffixes — CI central has no operator SAML role; dev suffixes stay for local ephemeral without BUILD_ID. #}
   "worker_node_ami_id": {% if worker_node_ami %}{{ worker_node_ami.id | tojson }}{% else %}""{% endif %},
   "worker_node_root_volume_size": {{ worker_node_root_volume_size | default(50) | tojson }}
 {%- set _mc_info = [] %}

@@ -9,9 +9,9 @@ Authorization is mandatory and denies by default. Enrollment grants nothing.
 ## Prerequisite: gateway-only access
 
 The API trusts the `X-Amz-Account-Id` and `X-Amz-Caller-Arn` headers without
-authenticating who sent them. The chart's ClusterIP Service exposes API port 8000
-and Envoy port 8080, and neither checks those headers. Any caller that reaches the
-pod directly can impersonate an enrolled identity. Restrict access to the API
+authenticating who sent them. The chart's ClusterIP Service exposes API port 8000,
+which does not check those headers. Any caller that reaches the pod directly can
+impersonate an enrolled identity. Restrict access to the API
 Gateway path before shared rollout. This is unproven (ROSAENG-67493).
 
 ## Set the bundle

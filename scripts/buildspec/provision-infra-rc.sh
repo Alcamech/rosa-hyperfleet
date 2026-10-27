@@ -18,6 +18,7 @@ aws configure set region                "${TARGET_REGION}"                --prof
 export TF_VAR_central_aws_profile="central"
 
 export TF_VAR_zoa_access_trusted_assumer_role_names=$(jq -c '.zoa_access_trusted_assumer_role_names // []' "$DEPLOY_CONFIG_FILE")
+export TF_VAR_zoa_access_trusted_assumer_role_name_suffixes=$(jq -c '.zoa_access_trusted_assumer_role_name_suffixes // []' "$DEPLOY_CONFIG_FILE")
 
 # Fetch PagerDuty config if enabled
 _RAW_PD=$(jq -r '.enable_pagerduty // false' "$DEPLOY_CONFIG_FILE")
@@ -169,6 +170,7 @@ if [ -z "${_zoa_boundary_image_tag}" ] || [ -z "${_zoa_boundary_source_image}" ]
 fi
 export TF_VAR_zoa_boundary_image="${_zoa_boundary_source_image}:${_zoa_boundary_image_tag}"
 export TF_VAR_zoa_boundary_session_idle_timeout_seconds=$(jq -r '.zoa_boundary_session_idle_timeout_seconds // 3600' "$DEPLOY_CONFIG_FILE")
+export TF_VAR_zoa_boundary_session_stale_creating_seconds=$(jq -r '.zoa_boundary_session_stale_creating_seconds // 900' "$DEPLOY_CONFIG_FILE")
 export TF_VAR_zoa_boundary_session_max_duration_hours=$(jq -r '.zoa_boundary_session_max_duration_hours // 4' "$DEPLOY_CONFIG_FILE")
 export TF_VAR_zoa_lambda_api_concurrency=$(jq -r '.zoa_lambda_api_concurrency' "$DEPLOY_CONFIG_FILE")
 export TF_VAR_zoa_lambda_worker_concurrency=$(jq -r '.zoa_lambda_worker_concurrency' "$DEPLOY_CONFIG_FILE")

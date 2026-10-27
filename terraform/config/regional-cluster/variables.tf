@@ -54,14 +54,26 @@ variable "central_aws_profile" {
 }
 
 variable "zoa_access_trusted_assumer_role_names" {
-  description = "Central Account IAM role names allowed to assume the ZOA Access invoker role. Must be set explicitly in environment config."
+  description = <<-EOT
+    Central Account IAM role names that may assume the ZOA Access invoker role in this RC.
+    Use the full role name exactly as in IAM (e.g. OrganizationAccountAccessRole).
+    Optional in config; may be empty if zoa_access_trusted_assumer_role_name_suffixes is set. RC apply
+    requires at least one entry across both lists. Each role must already exist in the central account (IAM validates principals).
+  EOT
   type        = list(string)
   default     = []
+}
 
-  validation {
-    condition     = length(var.zoa_access_trusted_assumer_role_names) > 0
-    error_message = "zoa_access_trusted_assumer_role_names must be set explicitly in environment config (no implicit Central Account trust)."
-  }
+variable "zoa_access_trusted_assumer_role_name_suffixes" {
+  description = <<-EOT
+    App-interface access role name suffixes only (the role-1.yml name field), not the full IAM role name.
+    App-interface provisions SAML hub roles in central as "<central_account_id>-<suffix>"; we avoid hardcoding
+    the account ID in environment config by listing suffixes here and expanding to full role names at RC apply
+    using data.aws_caller_identity.central. Optional in config; at least one name or suffix required at apply.
+    Expanded roles must exist in the central account.
+  EOT
+  type        = list(string)
+  default     = []
 }
 
 variable "app_code" {
@@ -500,6 +512,17 @@ variable "zoa_boundary_session_max_duration_hours" {
   validation {
     condition     = var.zoa_boundary_session_max_duration_hours >= 1 && var.zoa_boundary_session_max_duration_hours <= 24
     error_message = "zoa_boundary_session_max_duration_hours must be between 1 and 24."
+  }
+}
+
+variable "zoa_boundary_session_stale_creating_seconds" {
+  description = "Max time (seconds) a session may stay in creating before the worker reaper cleans it up. Passed to module.zoa_lambda only (SESSION_STALE_CREATING_SECONDS)."
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.zoa_boundary_session_stale_creating_seconds >= 60 && var.zoa_boundary_session_stale_creating_seconds <= 86400
+    error_message = "zoa_boundary_session_stale_creating_seconds must be between 60 and 86400."
   }
 }
 

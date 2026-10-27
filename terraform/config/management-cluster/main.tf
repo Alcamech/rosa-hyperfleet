@@ -138,7 +138,8 @@ module "zoa_lambda" {
   boundary_image         = var.zoa_boundary_image
   access_lambda_role_arn = var.zoa_access_lambda_role_arn
 
-  session_idle_timeout_seconds = var.zoa_boundary_session_idle_timeout_seconds
+  session_idle_timeout_seconds   = var.zoa_boundary_session_idle_timeout_seconds
+  session_stale_creating_seconds = var.zoa_boundary_session_stale_creating_seconds
 
   lambda_api_concurrency    = var.zoa_lambda_api_concurrency
   lambda_worker_concurrency = var.zoa_lambda_worker_concurrency

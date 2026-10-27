@@ -551,7 +551,8 @@ module "zoa_lambda" {
   vpc_id              = module.regional_cluster.vpc_id
   boundary_image      = var.zoa_boundary_image
 
-  session_idle_timeout_seconds = var.zoa_boundary_session_idle_timeout_seconds
+  session_idle_timeout_seconds   = var.zoa_boundary_session_idle_timeout_seconds
+  session_stale_creating_seconds = var.zoa_boundary_session_stale_creating_seconds
 
   lambda_api_concurrency    = var.zoa_lambda_api_concurrency
   lambda_worker_concurrency = var.zoa_lambda_worker_concurrency
@@ -586,8 +587,9 @@ module "zoa_access" {
   regional_id = var.regional_id
   image_uri   = module.zoa.lambda_image_uri
 
-  central_account_id         = data.aws_caller_identity.central.account_id
-  trusted_assumer_role_names = var.zoa_access_trusted_assumer_role_names
+  central_account_id                 = data.aws_caller_identity.central.account_id
+  trusted_assumer_role_names         = var.zoa_access_trusted_assumer_role_names
+  trusted_assumer_role_name_suffixes = var.zoa_access_trusted_assumer_role_name_suffixes
 
   mc_account_ids = local.mc_account_ids
 

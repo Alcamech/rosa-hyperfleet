@@ -16,10 +16,13 @@
 
 deployment_name: "{{ aws_region }}{% if eph_prefix %}-{{ eph_prefix }}{% endif %}"
 
-# ZOA Access invoker trust: explicit Central Account role names only (no repo-wide default).
 aws:
+  # Prow ephemeral Vault rrp-central assumes central role ci (user ci cannot assume OrgAccess).
   zoa_access_trusted_assumer_role_names:
     - OrganizationAccountAccessRole
+    - ci
+  zoa_access_trusted_assumer_role_name_suffixes:
+    - rosa-seaplane-zoa-operator-dev # future: rosa-seaplane-zoa-operator-eph
 
 dns:
   domain: "{% if ci %}ci00{% else %}dev0{% endif %}.rosa.devshift.net"
@@ -51,9 +54,9 @@ regional_cluster:
   zoa_lambda_api_concurrency: -1
   zoa_lambda_worker_concurrency: -1
   zoa_lambda_access_concurrency: -1
-  zoa_lambda_image_tag: "3e94eef"
-  zoa_runner_image_tag: "3e94eef"
-  zoa_boundary_image_tag: "3e94eef"
+  zoa_lambda_image_tag: "f8fb152"
+  zoa_runner_image_tag: "f8fb152"
+  zoa_boundary_image_tag: "f8fb152"
 
 applications:
   regional-cluster:

@@ -1,6 +1,6 @@
 # Zero Operator Access (ZOA) — Architecture
 
-**Last Updated Date**: 2026-10-20
+**Last Updated Date**: 2026-10-23
 
 ## Summary
 
@@ -33,7 +33,7 @@ Production work is **boundary-first**: every path begins on the laptop with sess
 
 **TA path** (mutations and reads): boundary → per-VPC **API** / **Worker** Lambdas → EKS (and AWS APIs where the TA requires them). Sync TAs are the common case; async TAs use Worker + `zoa-runner` Jobs.
 
-Operator guides and CLI detail: [ZOA documentation](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/README.md).
+Operator guides and CLI detail: [ZOA documentation](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/README.md). Resolved central `rh-aws-saml-login` targets and app-interface role setup: [rosa-hyperfleet-internal — ZOA operator access](https://github.com/openshift-online/rosa-hyperfleet-internal/blob/main/docs/onboarding/zoa-operator-access.md).
 
 ### Composite deployment
 
@@ -47,7 +47,7 @@ Three **Lambda personalities** from one container image (`zoa-lambda`), selected
 | **API**    | Per target VPC | `RESPONSE_STREAM`   | Function URL (IAM auth)             | `zoa run`, sync TAs, streaming responses (from boundary only)                | 300s    |
 | **Worker** | Per target VPC | _(no Function URL)_ | EventBridge Scheduler + self-invoke | Reconciler (1m), GC (5m), boundary reaper (5m); async Job lifecycle          | 300s    |
 
-**Access** (`modules/zoa-access`) serves short HTTP requests from the laptop; `ecs:RunTask` is asynchronous. It resolves **targets** from RC SSM (`TARGETS_SSM_PREFIX`, same `/zoa/targets/<deployment>/…` tree as session start) and **deployments** from Central SSM (`/zoa/deployments/<deployment_name>`). Session **duration** and **idle** limits are enforced on the boundary ECS task and the Worker reaper — not by keeping an Access invocation open. **API** and **Worker** (`modules/zoa-lambda`) share VPC networking with the boundary task in that cluster. Reserved concurrency and other operational defaults are environment configuration (not repeated here); see [Configuration](#configuration).
+**Access** (`modules/zoa-access`) serves short HTTP requests from the laptop; `ecs:RunTask` is asynchronous. It resolves **targets** from RC SSM (`TARGETS_SSM_PREFIX`, same `/zoa/targets/<deployment>/…` tree as session start) and **deployments** from Central SSM (`/zoa/deployments/<deployment_name>`). Session **duration**, **stale creating**, and **idle** limits are enforced on the boundary ECS task and the Worker reaper — not by keeping an Access invocation open. **API** and **Worker** (`modules/zoa-lambda`) share VPC networking with the boundary task in that cluster. Reserved concurrency and other operational defaults are environment configuration (not repeated here); see [Configuration](#configuration).
 
 All three modes enter through `lambda.Start()` from `aws-lambda-go`. **Access** and **API** use the same native Function URL streaming adapter (`pkg/lambdahttp`, up to 200MB). **Worker** handles EventBridge and self-invoke JSON events (no Function URL).
 
@@ -148,7 +148,7 @@ Access resource policy + invoker role constrain **session APIs** (start, join cr
 
 The boundary is the handoff between session plane and TA plane. The task role is scoped to that VPC's API Function URL and supporting AWS APIs; it cannot call Access or mutate session rows.
 
-Session logging: container stdout → `/ecs/<cluster_id>/zoa-boundary`; ECS Exec transcripts → `.../zoa-boundary/ssm-sessions` ([session logging](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-logging.md)). **Session enforcement:** Worker **reaper** (every 5m) stops tasks past **deadline** (`SESSION_MAX_DURATION_HOURS` at start) or **idle** (`SESSION_IDLE_TIMEOUT_SECONDS`; see [session reaper](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md)).
+Session logging: container stdout → `/ecs/<cluster_id>/zoa-boundary`; ECS Exec transcripts → `.../zoa-boundary/ssm-sessions` ([session logging](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-logging.md)). **Session enforcement:** Worker **reaper** (every 5m) runs **deadline**, **stale creating**, then **idle** (see [session reaper](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md)). Lambda env names and defaults: [ZOA `pkg/config`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md#pkgconfig--environment-configuration) and [timeout tuning — boundary sessions](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/timeout-tuning.md#access-lambda-and-boundary-sessions).
 
 #### Per-VPC API Lambda (TA plane — interactive)
 
@@ -298,7 +298,9 @@ Access Lambda sets **`Component`** and **`function`** on boundary **ECS tasks** 
 
 ## Configuration
 
-Operational tuning (Lambda timeouts and reserved concurrency, session idle/max duration, boundary task size, DynamoDB TTL, FedRAMP log retention floors) is declared in `config/<environment>/defaults.yaml` and rendered into pipeline Terraform inputs. Terraform modules map those values to Lambda environment variables and ECS task definitions. For variable names and defaults, see [`terraform/modules/zoa-lambda/README.md`](../../terraform/modules/zoa-lambda/README.md), [`terraform/modules/zoa-access/README.md`](../../terraform/modules/zoa-access/README.md), and [`config/defaults.yaml`](../../config/defaults.yaml).
+Operational tuning (Lambda timeouts and reserved concurrency, session max duration / idle / stale-creating windows, boundary task size, DynamoDB TTL, FedRAMP log retention floors) is declared in `config/<environment>/defaults.yaml` (for example `zoa_boundary_session_idle_timeout_seconds`, `zoa_boundary_session_stale_creating_seconds`, `zoa_boundary_session_max_duration_hours`) and rendered into pipeline Terraform inputs. Terraform modules map those keys to **Lambda environment variables** and ECS task definitions — see [`terraform/modules/zoa-lambda/README.md`](../../terraform/modules/zoa-lambda/README.md), [`terraform/modules/zoa-access/README.md`](../../terraform/modules/zoa-access/README.md), and [`config/defaults.yaml`](../../config/defaults.yaml).
+
+**Do not duplicate the runtime env catalog here.** The authoritative list of `SESSION_*` and other process env vars (names, defaults, `HANDLER_MODE` scope) lives in the ZOA repository: [`docs/architecture/implementation.md`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/implementation.md#pkgconfig--environment-configuration) and [`docs/architecture/timeout-tuning.md`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/architecture/timeout-tuning.md#access-lambda-and-boundary-sessions). Session reaper behavior: [`docs/boundary/session-reaper.md`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md).
 
 ## Security Model
 
@@ -314,7 +316,7 @@ Operational tuning (Lambda timeouts and reserved concurrency, session idle/max d
 | K8s RBAC per execution | Per-execution ServiceAccount (`zoa-runner-<exec-id>`) with minimal Role from TA template                                                                                                                                                                                                       |
 | Encryption at rest     | KMS for DynamoDB + S3 + CloudWatch Logs; SQS server-side encryption (SSE-SQS) for DLQ                                                                                                                                                                                                          |
 | Session audit          | ECS Exec transcripts → CloudWatch `.../zoa-boundary/ssm-sessions` (KMS). Container stdout → `/ecs/<cluster>/zoa-boundary`.                                                                                                                                                                     |
-| Session enforcement    | Worker reaper stops tasks past deadline or idle timeout. Deadlines set at session start, not modifiable from inside the container.                                                                                                                                                             |
+| Session enforcement    | Worker reaper: deadline, stale `creating`, then idle. Deadlines set at session start, not modifiable from inside the container. Detail: [session reaper](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/docs/boundary/session-reaper.md).                                     |
 | Audit trail            | Every API call → DynamoDB audit table. Every execution → DynamoDB executions table. Logs → CloudWatch (365d).                                                                                                                                                                                  |
 | Reason enforcement     | Every execution requires a tagged reason (Jira/PD ticket format, e.g. `PROJECT-123`). Validated at API level.                                                                                                                                                                                  |
 | EKS circuit breaker    | Trips after 3 consecutive EKS API failures within 30s; fast-fails for 60s to prevent timeout exhaustion. See [`circuit_breaker.go`](https://github.com/openshift-online/rosa-seaplane-zoa/blob/main/pkg/executor/circuit_breaker.go).                                                          |
