@@ -561,7 +561,7 @@ class PipelineMonitor:
             maxResults=100,
         )
         for action in response.get("actionExecutionDetails", []):
-            if action.get("actionName") != "ApplyInfrastructure":
+            if action.get("actionName") != "Apply":
                 continue
             result = (action.get("output") or {}).get("executionResult") or {}
             external_id = result.get("externalExecutionId")

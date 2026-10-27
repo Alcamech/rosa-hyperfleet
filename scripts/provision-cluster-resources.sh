@@ -410,7 +410,7 @@ generate_pipeline_spec() {
               {
                 name: "Build",
                 actions: [{
-                  name: "ApplyInfrastructure",
+                  name: "Apply",
                   actionTypeId: {category: "Build", owner: "AWS", provider: "CodeBuild", version: "1"},
                   configuration: {
                     ProjectName: $project,

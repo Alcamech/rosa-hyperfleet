@@ -21,7 +21,7 @@ class BuildSuccessContractTest(unittest.TestCase):
         pipeline_client.list_action_executions.return_value = {
             "actionExecutionDetails": [
                 {
-                    "actionName": "ApplyInfrastructure",
+                    "actionName": "Apply",
                     "output": {
                         "executionResult": {"externalExecutionId": "cluster:build-123"}
                     },
