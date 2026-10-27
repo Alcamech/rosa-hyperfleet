@@ -2421,6 +2421,7 @@ attachments:
     scope: regional
     region: us-east-1
 '''
+AUTHZ_EXAMPLE = PROJECT_ROOT / "docs" / "examples" / "authz-dev"
 PLATFORM_CHART = REAL_ARGOCD_CONFIG_DIR / "regional-cluster" / "platform-api"
 
 
@@ -2517,6 +2518,23 @@ class TestAuthzDelivery:
         assert config == content
         assert yaml.safe_load(config) == bundle
         assert yaml.safe_load(config)["registeredAccounts"] == ([] if principal == "deny-all" else ["012345678901"])
+
+    def test_dev_override(self, tmp_path):
+        # The example replaces the whole bundle and names no account; Helm supplies the RC account.
+        overrides = load_yaml(AUTHZ_EXAMPLE / "defaults.yaml")
+        assert load_yaml(AUTHZ_EXAMPLE / "us-east-1.yaml") == {"provision_mcs": {"mc01": {}}}
+        values = _authz_values(tmp_path, "ephemeral", overrides)
+        values["global"] = {"aws_account_id": "012345678901", "aws_region": "us-east-1"}
+        resources, _ = _helm_platform(tmp_path, values)
+        bundle = yaml.safe_load(_resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"])
+        _assert_bundle_fields(bundle)
+        assert bundle["registeredAccounts"] == ["012345678901"]
+        assert [p["id"] for p in bundle["policies"]] == ["rc-all-actions", "dev-read-only"]
+        assert [a["principalARN"] for a in bundle["attachments"]] == [
+            "arn:aws:iam::012345678901:role/OrganizationAccountAccessRole",
+            "arn:aws:iam::012345678901:user/e2e",
+            "arn:aws:iam::012345678901:role/dev-readers",
+        ]
 
     @pytest.mark.parametrize("rate_enabled", [False, True])
     def test_mount_inputs_metrics(self, tmp_path, rate_enabled):

@@ -55,6 +55,20 @@ allowlists its customer account before the ROSA CLI tests.
   Existing entries are kept. `scripts/buildspec/register.sh` only waits for the
   RC API.
 
+## Override the bundle in an ephemeral environment
+
+To test other grants, copy the example override before provisioning or
+resyncing. It replaces the whole bundle: it repeats the default RC grants and adds a
+`ReadOnly` role (`dev-readers`, replace it with yours) in the RC account. It names
+no account ID; `@@AWS_ACCOUNT_ID@@` resolves to the RC account. Merge any
+existing overrides first.
+
+```sh
+mkdir -p .ephemeral-env
+cp -n docs/examples/authz-dev/*.yaml .ephemeral-env/
+make ephemeral-resync ID=<id>
+```
+
 ## Allowlist an account (SOP)
 
 The temporary allowlist admits an account and gives it full access to its own
