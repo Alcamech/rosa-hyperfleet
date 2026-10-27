@@ -72,7 +72,7 @@ Bootstrap reads the rendered cluster descriptors, resolves SSM account IDs,
 and grants access to their exact target-account administrator roles. RC workers
 can assume the Regional account role. MC workers can assume the configured
 Management account roles and the Regional account role required for state,
-registration, and cleanup. New target accounts or administrator roles require
+RC-side MC resources, and cleanup. New target accounts or administrator roles require
 a bootstrap rerun; creating another MC in an already authorized account does
 not require adding its project name to IAM.
 

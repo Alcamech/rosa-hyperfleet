@@ -7,7 +7,7 @@
 #
 # Flow:
 #   1. Call provision-infra-<type>.sh
-#   2. Call bootstrap/register scripts per cluster type
+#   2. Call bootstrap scripts per cluster type (RC also waits for the Platform API)
 set -euo pipefail
 
 CLUSTER_TYPE_ARG="${1:?Usage: provision-cluster.sh <regional-cluster|RC|rc|management-cluster|MC|mc>}"
@@ -69,7 +69,6 @@ case "$CLUSTER_TYPE" in
         run_timed_step "MC ZOA target registration" ./scripts/buildspec/provision-mc-zoa-target-ssm.sh
         run_timed_step "MC kube-applier DynamoDB" ./scripts/buildspec/provision-kube-applier-dynamodb.sh
         run_timed_step "MC ArgoCD bootstrap" ./scripts/buildspec/bootstrap-argocd-mc.sh
-        run_timed_step "MC API readiness and registration" ./scripts/buildspec/register.sh
         ;;
 
 esac
@@ -77,7 +76,7 @@ esac
 echo "provision-cluster: ${CLUSTER_TYPE} provisioning complete"
 
 # ── Phase 2: Mark as applied ──────────────────────────────────────────────────
-# All phase scripts succeeded (terraform apply/destroy + bootstrap/register). Set
+# All phase scripts succeeded (terraform apply/destroy + bootstrap + RC API readiness). Set
 # APPLIED=true so the CI gate accepts this build. APPLIED_SHA is the git commit.
 # Dual meaning: for provision builds APPLIED=true means "this SHA's config was
 # applied"; for destroy builds (IS_DESTROY=true) it means "this SHA was fully

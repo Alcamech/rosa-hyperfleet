@@ -101,7 +101,7 @@ the RC and MC pipelines with push triggers disabled.
 
 1. For existing pipelines, start `regional-pipeline` with `IS_DESTROY=false` and wait for it to succeed. A newly created pipeline starts automatically; monitor that execution instead of starting a duplicate.
 
-2. Start `mc01-pipeline` with `IS_DESTROY=false`, or monitor its automatic creation execution. The MC build waits for regional prerequisites before completing bootstrap and registration.
+2. Start `mc01-pipeline` with `IS_DESTROY=false`, or monitor its automatic creation execution. The MC build waits for regional prerequisites before completing bootstrap.
 
 3. Monitor both pipelines until they succeed. If either fails, keep push triggers disabled while fixing or retrying it.
 

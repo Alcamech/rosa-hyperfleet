@@ -80,12 +80,12 @@ Running `scripts/render.py` generates:
   - Contains: `region`, `account_id`, `management_id`
 
 - **`deploy/<env>/<region>/pipeline-regional-cluster-inputs/terraform.json`**
-  - Consumer: RC CodePipeline's CodeBuild action (`provision-infra-rc.sh`, `bootstrap-argocd-rc.sh`)
+  - Consumer: RC CodePipeline's CodeBuild action (`provision-infra-rc.sh`, `bootstrap-argocd-rc.sh`, `wait-for-regional-api.sh`)
   - Trigger: Regional CodePipeline source filter
   - Contains: Terraform variables + `delete` flag
 
 - **`deploy/<env>/<region>/pipeline-management-cluster-<mc>-inputs/terraform.json`**
-  - Consumer: MC CodePipeline's CodeBuild action (`provision-infra-mc.sh`, `bootstrap-argocd-mc.sh`, `register.sh`)
+  - Consumer: MC CodePipeline's CodeBuild action (`provision-infra-mc.sh`, `bootstrap-argocd-mc.sh`)
   - Trigger: Management CodePipeline source filter
   - Contains: Terraform variables + `delete` flag
 

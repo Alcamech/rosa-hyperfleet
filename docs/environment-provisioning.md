@@ -32,7 +32,7 @@ Bootstrap authorizes the exact account IDs and `aws.child_admin_role_name` from
 the rendered configuration, resolving SSM account references in the Central
 account. The RC worker can assume its configured Regional account role; MC
 workers can assume the configured Management account roles and the Regional
-account role needed for registration and cleanup. Update the configuration and
+account role needed for RC state, RC-side MC resources, and cleanup. Update the configuration and
 rerun bootstrap before using a new target account or administrator role.
 
 ### 1.2 Enable assume-role
