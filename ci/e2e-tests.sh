@@ -99,6 +99,10 @@ fi
 export AWS_PROFILE="rrp-rc"
 export AWS_DEFAULT_REGION="${AWS_REGION:-us-east-1}"
 
+# Print the real signing principal, not credentials, to diagnose grant mismatches.
+echo "Regional API caller (rrp-rc):"
+aws sts get-caller-identity --profile rrp-rc --query '{Account:Account,Arn:Arn}' --output json
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 export PATH="/usr/local/sessionmanagerplugin/bin:/usr/bin:/usr/local/bin:${PATH}"
@@ -274,6 +278,8 @@ if [[ $platform_rc -ne 0 ]]; then
 elif aws configure export-credentials --profile rrp-customer --format process &>/dev/null; then
   export CUSTOMER_AWS_PROFILE="rrp-customer"
   echo "Customer profile rrp-customer is available"
+  echo "Customer API caller (rrp-customer):"
+  aws sts get-caller-identity --profile rrp-customer --query '{Account:Account,Arn:Arn}' --output json
 
   if [[ -z "${E2E_CUSTOMER_ACCOUNT_ID:-}" ]]; then
     export E2E_CUSTOMER_ACCOUNT_ID="$(aws sts get-caller-identity --profile rrp-customer --query Account --output text)"
@@ -357,11 +363,15 @@ if [[ "$_have_customer_creds" == "true" ]]; then
     echo "ROSA_LABEL_FILTER: ${ROSA_LABEL_FILTER}"
     # Register the customer account as the RC account. "privileged" is for the legacy
     # accounts API; the Cedar allowlist ignores it.
-    AWS_PROFILE=rrp-rc awscurl --service execute-api --region "${AWS_DEFAULT_REGION}" \
+    if AWS_PROFILE=rrp-rc awscurl --service execute-api --region "${AWS_DEFAULT_REGION}" --fail-with-body \
       -X POST -H "Content-Type: application/json" \
       -d "{\"accountId\":\"${E2E_CUSTOMER_ACCOUNT_ID}\",\"privileged\":true}" \
-      "${BASE_URL}/api/v0/accounts" > /dev/null || true
-    AWS_PROFILE="${CUSTOMER_AWS_PROFILE}" ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER}" make test-e2e-rosa-cli || rosa_cli_rc=$?
+      "${BASE_URL}/api/v0/accounts"; then
+      AWS_PROFILE="${CUSTOMER_AWS_PROFILE}" ROSA_LABEL_FILTER="${ROSA_LABEL_FILTER}" make test-e2e-rosa-cli || rosa_cli_rc=$?
+    else
+      echo "ERROR: allowlisting customer account failed" >&2
+      rosa_cli_rc=1
+    fi
   else
     echo ""
     echo "=== ROSA CLI Tests ==="
