@@ -11,7 +11,6 @@
 #   GITHUB_REPOSITORY    - GitHub repository in owner/name format
 #   GITHUB_BRANCH        - GitHub branch to track
 #   GITHUB_CONNECTION_ARN - resolved CodeStar connection ARN from bootstrap
-#   PLATFORM_IMAGE       - Platform container image URI
 #   RC_CODEBUILD_ROLE_ARN - ARN of the centrally-managed RC CodeBuild role
 #   MC_CODEBUILD_ROLE_ARN - ARN of the shared MC CodeBuild role
 #   CODEPIPELINE_ROLE_ARN - ARN of the shared cluster CodePipeline role
@@ -32,10 +31,6 @@ aws_cluster_pipeline() {
     AWS_USE_FIPS_ENDPOINT="$use_fips" aws "$@"
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Platform Image Computation (ADR: fail-closed image check)
-# ──────────────────────────────────────────────────────────────────────────────
-
 sha256_stdin() {
     if command -v sha256sum >/dev/null 2>&1; then
         sha256sum
@@ -45,134 +40,6 @@ sha256_stdin() {
         echo "ERROR: sha256sum or shasum is required" >&2
         return 127
     fi
-}
-
-DOCKERFILE="terraform/modules/platform-image/Dockerfile"
-if [ -f "$DOCKERFILE" ] && [ -n "${PLATFORM_IMAGE:-}" ]; then
-  _computed_tag=$(sha256_stdin < "$DOCKERFILE" | cut -c1-12)
-  _base_repo="${PLATFORM_IMAGE%:*}"
-  PLATFORM_IMAGE="${_base_repo}:${_computed_tag}"
-  echo "Platform image (computed from Dockerfile): ${PLATFORM_IMAGE}"
-fi
-
-# Fail-closed: verify image exists in ECR before create/update
-verify_platform_image_exists() {
-    local image_uri="$1"
-    local repo="${image_uri%:*}"
-    local tag="${image_uri##*:}"
-    local repository_name
-
-    # Public ECR uses different API
-    if [[ "$repo" =~ ^public\.ecr\.aws ]]; then
-        # Remove the public ECR registry alias but preserve nested repository paths.
-        repository_name="${repo#public.ecr.aws/}"
-        repository_name="${repository_name#*/}"
-        if ! aws ecr-public describe-images --repository-name "$repository_name" --image-ids imageTag="$tag" --region us-east-1 --no-cli-pager >/dev/null 2>&1; then
-            return 1
-        fi
-    else
-        # Private ECR - extract region from repo URI
-        local region="${repo#*.ecr.}"
-        region="${region%%.*}"
-        repository_name="${repo#*/}"
-        if ! aws ecr describe-images --repository-name "$repository_name" --image-ids imageTag="$tag" --region "$region" --no-cli-pager >/dev/null 2>&1; then
-            return 1
-        fi
-    fi
-
-    return 0
-}
-
-# Ensure platform image exists; build if missing (Day-0/1)
-ensure_platform_image() {
-    local image_uri="$1"
-
-    echo "Ensuring platform image exists: $image_uri"
-
-    if verify_platform_image_exists "$image_uri"; then
-        echo "✓ Platform image exists: $image_uri"
-        return 0
-    fi
-
-    echo "Platform image not found in ECR — building now..."
-
-    # Determine build project name
-    local project_name="${NAME_PREFIX:+${NAME_PREFIX}-}build-platform-image"
-
-    # Build at the ref we were handed. Pipelines and ArgoCD only ever follow
-    # GITHUB_BRANCH; local HEAD is not necessarily that ref.
-    echo "Building at ref: $GITHUB_BRANCH"
-
-    # Start the build
-    echo "Starting build: $project_name"
-    local build_id
-    if ! build_id=$(aws_cluster_pipeline codebuild start-build \
-        --project-name "$project_name" \
-        --source-version "$GITHUB_BRANCH" \
-        --query 'build.id' \
-        --output text \
-        --no-cli-pager 2>&1); then
-        echo "ERROR: Failed to start build for $project_name" >&2
-        echo "$build_id" >&2
-        exit 1
-    fi
-
-    echo "Build started: $build_id"
-
-    # Wait for build to complete (poll every 15s, timeout 30 min)
-    local max_wait=1800
-    local waited=0
-    local poll_interval=15
-
-    while [ $waited -lt $max_wait ]; do
-        local status
-        if ! status=$(aws_cluster_pipeline codebuild batch-get-builds \
-            --ids "$build_id" \
-            --query 'builds[0].buildStatus' \
-            --output text \
-            --no-cli-pager 2>&1); then
-            echo "WARNING: batch-get-builds failed, retrying..." >&2
-            sleep $poll_interval
-            waited=$((waited + poll_interval))
-            continue
-        fi
-
-        case "$status" in
-            SUCCEEDED)
-                echo "✓ Build succeeded: $build_id"
-                break
-                ;;
-            FAILED|TIMED_OUT|FAULT|STOPPED)
-                echo "ERROR: Build failed with status: $status" >&2
-                echo "Check CloudWatch logs for build: $build_id" >&2
-                exit 1
-                ;;
-            IN_PROGRESS|QUEUED)
-                echo "  [$waited/${max_wait}s] Build status: $status"
-                sleep $poll_interval
-                waited=$((waited + poll_interval))
-                ;;
-            *)
-                echo "WARNING: Unknown build status: $status" >&2
-                sleep $poll_interval
-                waited=$((waited + poll_interval))
-                ;;
-        esac
-    done
-
-    if [ $waited -ge $max_wait ]; then
-        echo "ERROR: Build did not complete within ${max_wait}s" >&2
-        exit 1
-    fi
-
-    # Re-verify image now exists
-    echo "Re-verifying platform image after build..."
-    if ! verify_platform_image_exists "$image_uri"; then
-        echo "ERROR: Platform image still missing after successful build!" >&2
-        exit 1
-    fi
-
-    echo "✓ Platform image built and verified: $image_uri"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -423,7 +290,7 @@ generate_project_spec() {
                 type: "LINUX_CONTAINER",
                 image: $image,
                 computeType: "BUILD_GENERAL1_SMALL",
-                imagePullCredentialsType: "CODEBUILD",
+                imagePullCredentialsType: "SERVICE_ROLE",
                 privilegedMode: false,
                 environmentVariables: $env_vars
             },
@@ -812,19 +679,6 @@ load_cluster_config() {
     export AWS_REGION TARGET_ACCOUNT_ID CHILD_ADMIN_ROLE_NAME REGION_DEPLOYMENT
 }
 
-ensure_platform_image_once() {
-    if [ "${PLATFORM_IMAGE_READY:-false}" = "true" ]; then
-        return 0
-    fi
-
-    if [ -z "${PLATFORM_IMAGE:-}" ]; then
-        echo "ERROR: PLATFORM_IMAGE must be set for cluster creation" >&2
-        return 1
-    fi
-    ensure_platform_image "$PLATFORM_IMAGE" || return 1
-    PLATFORM_IMAGE_READY=true
-}
-
 create_cluster_resource() {
     local cluster_type="$1"
     local config_path="$2"
@@ -846,8 +700,11 @@ create_cluster_resource() {
         echo "ERROR: Missing CodeBuild service role ARN for $cluster_type cluster $CLUSTER_PROJECT_ID" >&2
         return 1
     fi
+    if ! PLATFORM_IMAGE=$(jq -er '.platform_image // empty' "$config_path"); then
+        echo "ERROR: platform_image is missing from $config_path" >&2
+        return 1
+    fi
     bootstrap_target_state_bucket "$TARGET_ACCOUNT_ID" "$AWS_REGION" || return 1
-    ensure_platform_image_once || return 1
 
     upsert_project "$cluster_type" "$CLUSTER_PROJECT_ID" "$service_role_arn" \
         "$buildspec_path" "$timeout_minutes" "$CLUSTER_PROJECT_ID" || return 1
@@ -973,7 +830,6 @@ run_cluster_action() {
 }
 
 ENVIRONMENT="${ENVIRONMENT:-${TARGET_ENVIRONMENT:-staging}}"
-PLATFORM_IMAGE_READY=false
 
 if [ "$#" -gt 0 ]; then
     case "$1" in

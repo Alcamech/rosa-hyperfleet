@@ -74,6 +74,7 @@ def _create_config_structure(
 
     # Start with base required fields (mirrors real config/defaults.yaml)
     base_defaults = {
+        "platform_image": "example.invalid/platform:test",
         "aws": {
             "account_id": "",
             "management_cluster_account_id": "000000000000",

@@ -1,11 +1,3 @@
-# Retain the platform-image builder and its IAM role when retiring the
-# Terraform-managed provisioner pipeline. The remaining provisioner resources
-# are removed by the plan while retained resources keep their AWS identities.
-moved {
-  from = module.pipeline_provisioner
-  to   = module.platform_image_builder
-}
-
 moved {
   from = module.pipeline_notifications
   to   = module.codebuild_notifications

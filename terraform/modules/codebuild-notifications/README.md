@@ -1,6 +1,6 @@
 # CodeBuild Notifications Module
 
-Automated Slack notifications for AWS CodeBuild failures using EventBridge and Lambda. Central bootstrap currently enables this module only for the platform-image build project; RC/MC projects are not included.
+Automated Slack notifications for AWS CodeBuild failures using EventBridge and Lambda. Central bootstrap enables this module for the RC/MC CodeBuild projects rendered at bootstrap time; rerun bootstrap to include clusters added later.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ module "codebuild_notifications" {
 
   slack_webhook_ssm_param = "/rosa-regional/slack/webhook-url"
   name_prefix             = "my-project"
-  project_names           = ["my-project-build-platform-image"]
+  project_names           = ["regional", "mc01"]
 }
 ```
 

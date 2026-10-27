@@ -158,6 +158,6 @@ resource "aws_iam_role_policy" "rc_codebuild_policy" {
         ]
         Resource = "*"
       }
-    ] : [])
+    ] : [], local.platform_image_pull_statements)
   })
 }

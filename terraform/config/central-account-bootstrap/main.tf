@@ -2,17 +2,12 @@ provider "aws" {
   region = var.region
 }
 
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-}
-
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 data "aws_partition" "current" {}
 
 locals {
-  # When name_prefix is set (e.g., "eph-199b4083"), resource names become "eph-199b4083-build-platform-image", etc.
+  # When name_prefix is set (e.g., "eph-199b4083"), shared resource names are prefixed with "eph-199b4083-".
   name_prefix = var.name_prefix != "" ? "${var.name_prefix}-" : ""
 
   # IAM role prefix is separately configurable. Defaults to name_prefix for backward compatibility.
@@ -36,6 +31,28 @@ locals {
   cluster_log_group_prefix = "/aws/codebuild/${basename(module.codepipeline_shared.pipeline_role_arn)}"
   regional_project_names   = var.regional_cluster == null ? [] : [var.regional_cluster.project_name]
   management_project_names = [for cluster in var.management_clusters : cluster.project_name]
+  cluster_project_names    = concat(local.regional_project_names, local.management_project_names)
+  # RC/MC CodeBuild projects pull the platform image from another account's ECR
+  # with their service role, which needs pull access to its repository.
+  platform_image_pattern         = "^([0-9]{12})\\.dkr\\.ecr\\.([a-z0-9-]+)\\.amazonaws\\.com/([^:@]+)"
+  platform_image_repository_arns = [
+    for parts in try([regex(local.platform_image_pattern, var.platform_image)], []) :
+    "arn:${data.aws_partition.current.partition}:ecr:${parts[1]}:${parts[0]}:repository/${parts[2]}"
+  ]
+  platform_image_pull_statements = flatten([
+    for repository_arn in local.platform_image_repository_arns : [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage"]
+        Resource = repository_arn
+      }
+    ]
+  ])
   # Existing builds keep their original project log groups until the SDK
   # reconciles projects to the shared groups used by future cluster names.
   regional_log_groups = concat(["${local.cluster_log_group_prefix}/regional"], [
@@ -60,51 +77,24 @@ resource "aws_codestarconnections_connection" "github" {
   }
 }
 
-# Platform Image ECR Repository
-module "platform_image" {
-  source = "../../modules/platform-image"
-
-  providers = {
-    aws.us_east_1 = aws.us_east_1
-  }
-
-  resource_name_base = "rosa-regional"
-  name_prefix        = var.name_prefix
-  tags = {
-    Name        = "rosa-seaplane-image"
-    Environment = var.environment
-  }
-}
-
 module "codepipeline_shared" {
   source = "../../modules/codepipeline-shared"
 
   github_connection_arn = aws_codestarconnections_connection.github.arn
   name_prefix           = var.name_prefix
   region                = var.region
-  cluster_project_names = concat(local.regional_project_names, local.management_project_names)
-}
-
-module "platform_image_builder" {
-  source = "../../modules/platform-image-builder"
-
-  github_repository     = var.github_repository
-  region                = var.region
-  github_connection_arn = aws_codestarconnections_connection.github.arn
-  platform_ecr_repo     = module.platform_image.ecr_repository_url
-  platform_ecr_repo_arn = module.platform_image.ecr_repository_arn
-  name_prefix           = var.name_prefix
+  cluster_project_names = local.cluster_project_names
 }
 
 # CodeBuild Failure Notifications
 # Gated by an explicit feature flag (see var.enable_slack_notifications).
-# Currently only monitors the build-platform-image project.
-# RC/MC notifications are SDK-side (out of scope for this module).
+# Monitors the RC/MC CodeBuild projects rendered at bootstrap time; rerun
+# bootstrap to include clusters added later.
 module "codebuild_notifications" {
   source = "../../modules/codebuild-notifications"
-  count  = var.enable_slack_notifications ? 1 : 0
+  count  = var.enable_slack_notifications && length(local.cluster_project_names) > 0 ? 1 : 0
 
   slack_webhook_ssm_param = var.slack_webhook_ssm_param
   name_prefix             = var.name_prefix
-  project_names           = [module.platform_image_builder.build_platform_image_project_name]
+  project_names           = local.cluster_project_names
 }

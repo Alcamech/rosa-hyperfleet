@@ -125,7 +125,7 @@ git push origin <your-branch>
 
 ## 3. Bootstrap Central Resources and Cluster Pipelines
 
-Switch to your Central AWS profile. Bootstrap applies Terraform for shared resources (connection, IAM roles, artifact bucket, and platform-image builder), ensures the platform image exists, and invokes `scripts/provision-cluster-resources.sh` to create or update each cluster's CodeBuild project and CodePipeline through AWS APIs. There is no pipeline-provisioner meta-pipeline.
+Switch to your Central AWS profile. Bootstrap applies Terraform for shared resources (connection, IAM roles, and artifact bucket) and invokes `scripts/provision-cluster-resources.sh` to create or update each cluster's CodeBuild project and CodePipeline through AWS APIs. There is no pipeline-provisioner meta-pipeline.
 
 ### 3.1 Run the bootstrap script
 

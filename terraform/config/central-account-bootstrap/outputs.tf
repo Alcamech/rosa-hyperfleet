@@ -32,25 +32,6 @@ output "deployment_region" {
 }
 
 # =============================================================================
-# Platform Image
-# =============================================================================
-
-output "platform_ecr_repository_url" {
-  description = "URL of the platform image ECR repository"
-  value       = module.platform_image.ecr_repository_url
-}
-
-output "platform_image_tag" {
-  description = "Tag of the platform image (based on Dockerfile hash)"
-  value       = module.platform_image.image_tag
-}
-
-output "platform_container_image" {
-  description = "Full container image URI (repository:tag) for use by provision-cluster-resources.sh"
-  value       = module.platform_image.container_image
-}
-
-# =============================================================================
 # Cluster CodeBuild Roles
 # =============================================================================
 

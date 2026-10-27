@@ -31,6 +31,11 @@ git:
 # @used-by deployment_name pipeline-regional-cluster-inputs/terraform.json.j2
 deployment_name: "{{ aws_region }}{% if eph_prefix %}-{{ eph_prefix }}{% endif %}"
 
+# @doc platform_image Platform container image, built by Konflux from terraform/modules/platform-image/Dockerfile and shared from ECR. Runs the RC/MC CodeBuild projects and the ECS bootstrap, bastion, and log-collection tasks.
+# @used-by platform_image pipeline-provisioner-inputs/regional-cluster.json.j2
+# @used-by platform_image pipeline-provisioner-inputs/management-cluster.json.j2
+platform_image: "669421954122.dkr.ecr.us-east-1.amazonaws.com/rosa-seaplane-ci:73edae04747b6a448843db403fc938060aac4bca"
+
 aws:
   # @doc aws.account_id Regional AWS account ID.
   # @used-by aws.account_id _context

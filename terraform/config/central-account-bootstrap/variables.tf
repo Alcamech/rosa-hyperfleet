@@ -67,6 +67,16 @@ variable "regional_cluster" {
   }
 }
 
+variable "platform_image" {
+  description = "Platform container image URI (rendered platform_image). The RC/MC CodeBuild roles get pull access to its ECR repository."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.platform_image == "" || can(regex("^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com/[^:@]+", var.platform_image))
+    error_message = "platform_image must be an ECR image URI (<account>.dkr.ecr.<region>.amazonaws.com/<repository>:<tag>)."
+  }
+}
+
 variable "management_clusters" {
   description = "Rendered MC projects and resolved target accounts/administrator roles. Refresh bootstrap authorization before provisioning an MC in a new target account."
   type = list(object({

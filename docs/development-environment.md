@@ -83,7 +83,7 @@ reuses an active execution at that SHA or starts a retry if the pipeline is idle
 See [CodePipeline Cluster Lifecycle](design/codepipeline-cluster-lifecycle.md)
 for the trigger and execution details.
 
-Automatic resync stops before the force-push if the environment has active CodePipeline executions or a platform-image CodeBuild build, preventing concurrent infrastructure changes. Wait for those executions to finish and retry, or use `RESYNC=false` if the existing branch should be retained.
+Automatic resync stops before the force-push if the environment has active CodePipeline executions, preventing concurrent infrastructure changes. Wait for those executions to finish and retry, or use `RESYNC=false` if the existing branch should be retained.
 
 ## Customizing Your Environment
 

@@ -6,11 +6,7 @@ For the current per-cluster pipeline architecture and lifecycle, see [CodePipeli
 
 ### `central-account-bootstrap/`
 
-Creates the shared CodeStar connection, artifact bucket, CodePipeline role, CodeBuild roles, platform-image project, and platform-image ECR repository. The connection must be authorized manually in the AWS Console.
-
-### `../modules/platform-image-builder/`
-
-Defines the retained platform-image CodeBuild project. `scripts/provision-cluster-resources.sh` dynamically creates one CodePipeline and one CodeBuild project per RC or MC.
+Creates the shared CodeStar connection, artifact bucket, CodePipeline role, and CodeBuild roles. The connection must be authorized manually in the AWS Console. `scripts/provision-cluster-resources.sh` dynamically creates one CodePipeline and one CodeBuild project per RC or MC.
 
 ### `codebuild-regional-cluster/` and `codebuild-management-cluster/`
 

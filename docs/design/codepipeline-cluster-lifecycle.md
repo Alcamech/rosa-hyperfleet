@@ -4,8 +4,9 @@
 
 Each RC and MC has one CodePipeline invoking a single combined CodeBuild project.
 Terraform owns shared resources; the cluster resource script owns dynamic
-CodeBuild/CodePipeline lifecycle. The platform-image CodeBuild remains on-demand
-with no webhook or dedicated pipeline.
+CodeBuild/CodePipeline lifecycle. The platform image is built by Konflux from
+`terraform/modules/platform-image/Dockerfile` and referenced by the rendered
+`platform_image` config value.
 
 ## Why this architecture
 
@@ -59,8 +60,8 @@ cluster resource script does not call `StartPipelineExecution`. Pipeline
 resources are not Terraform state, allowing an MC autoscaler to manage them
 without Terraform applies or per-MC pipeline state files.
 
-Bootstrap creates the shared Terraform resources, ensures the platform image
-exists, and invokes this script directly. Rerun it through bootstrap when the
+Bootstrap creates the shared Terraform resources and invokes this script
+directly. Rerun it through bootstrap when the
 cluster set or project/pipeline definitions change; existing pipeline push
 filters only trigger infrastructure executions. A project is named after its
 rendered `regional_id` or `management_id`, with `-pipeline` appended for the
@@ -137,10 +138,9 @@ actual state before applying the new central bootstrap:
 1. Pause legacy source triggers and wait for active pipeline/build executions
    to finish. Inventory the central bootstrap state and each legacy RC/MC
    pipeline state, and save state backups and resource definitions.
-2. Map shared resources that must survive (connection, platform-image builder,
-   ECR repository, and shared IAM resources) to their new Terraform addresses.
-   The central bootstrap includes `moved.tf` mappings for the retained builder,
-   notification module, and shared MC role. Review these mappings, any additional
+2. Map shared resources that must survive (connection and shared IAM
+   resources) to their new Terraform addresses. The central bootstrap includes
+   `moved.tf` mappings for the shared MC role. Review these mappings, any additional
    moves/imports needed by the actual environment, and the resulting plan before
    applying.
 3. Identify legacy per-cluster pipeline resources separately from target-account

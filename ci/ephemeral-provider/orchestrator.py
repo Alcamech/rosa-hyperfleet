@@ -79,7 +79,6 @@ class EphemeralEnvOrchestrator:
         self.provision_overrides = provision_overrides or []
         self.eph_branch_name = eph_branch_name
         self.aws: AWSCredentials | None = None
-        self.central_monitor: BuildMonitor | None = None
         self.target_monitor: PipelineMonitor | None = None
         self.git: GitManager | None = None
         # CodeBuild project names (read from rendered config after bootstrap)
@@ -162,7 +161,6 @@ class EphemeralEnvOrchestrator:
             if not desired_sha:
                 raise RuntimeError("render_and_push returned no SHA — no changes committed")
 
-        self.central_monitor = BuildMonitor(self.aws.session)
         self.target_monitor = PipelineMonitor(self.aws.target_session)
         self._read_project_names(git)
         pipeline_names = [
@@ -251,7 +249,6 @@ class EphemeralEnvOrchestrator:
 
         with self._timed_step("AWS credential setup"):
             self._setup_aws()
-        self.central_monitor = BuildMonitor(self.aws.session)
         self.target_monitor = PipelineMonitor(self.aws.target_session)
 
         if resync_before_resume:
@@ -263,11 +260,6 @@ class EphemeralEnvOrchestrator:
                     if name
                 ]
                 active_builds = self.target_monitor.active_pipelines(pipeline_names)
-                active_builds.extend(
-                    self.central_monitor.active_builds(
-                        [f"{git.eph_prefix}-build-platform-image"]
-                    )
-                )
                 if active_builds:
                     raise RuntimeError(
                         "Cannot automatically resync while CodeBuild builds are active: "
@@ -359,7 +351,6 @@ class EphemeralEnvOrchestrator:
 
         self._setup_aws()
 
-        self.central_monitor = BuildMonitor(self.aws.session)
         self.target_monitor = PipelineMonitor(self.aws.target_session)
 
         # Read RC/MC project names from rendered config before any teardown side effects.
@@ -1645,8 +1636,8 @@ class EphemeralEnvOrchestrator:
         """Destroy bootstrap infrastructure via terraform destroy.
 
         Removes the connection from state first so it persists across CI runs,
-        then destroys everything else (platform image ECR, build-platform-image
-        CodeBuild, RC/MC IAM roles).
+        then destroys everything else (shared CodePipeline resources and RC/MC
+        IAM roles).
         """
         bootstrap_dir = git.work_dir / "terraform" / "config" / "central-account-bootstrap"
 

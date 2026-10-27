@@ -72,12 +72,12 @@ Running `scripts/render.py` generates:
 - **`deploy/<env>/<region>/pipeline-provisioner-inputs/regional-cluster.json`**
   - Consumer: `provision-cluster-resources.sh`
   - Trigger: Central bootstrap or an explicit provisioner run
-  - Contains: `region`, `account_id`, `regional_id`
+  - Contains: `region`, `account_id`, `regional_id`, `platform_image`
 
 - **`deploy/<env>/<region>/pipeline-provisioner-inputs/management-cluster-<mc>.json`**
   - Consumer: `provision-cluster-resources.sh`
   - Trigger: Central bootstrap or an explicit provisioner run
-  - Contains: `region`, `account_id`, `management_id`
+  - Contains: `region`, `account_id`, `management_id`, `platform_image`
 
 - **`deploy/<env>/<region>/pipeline-regional-cluster-inputs/terraform.json`**
   - Consumer: RC CodePipeline's CodeBuild action (`provision-infra-rc.sh`, `bootstrap-argocd-rc.sh`, `wait-for-regional-api.sh`)

@@ -399,9 +399,14 @@ terraform init -reconfigure \
 # Keep resolved account descriptors in a JSON variable file rather than
 # interpolating configuration values into HCL. Terraform loads it for import,
 # plan, apply, and subsequent teardown from this checkout.
+if ! CONFIG_PLATFORM_IMAGE=$(jq -er '.platform_image // empty' "${RESOURCE_CONFIG_DIR}/regional-cluster.json"); then
+    echo "ERROR: platform_image is missing from ${RESOURCE_CONFIG_DIR}/regional-cluster.json" >&2
+    exit 1
+fi
 jq -n --argjson regional_cluster "$REGIONAL_CLUSTER" \
     --argjson management_clusters "$MANAGEMENT_CLUSTERS" \
-    '{regional_cluster: $regional_cluster, management_clusters: $management_clusters}' \
+    --arg platform_image "$CONFIG_PLATFORM_IMAGE" \
+    '{regional_cluster: $regional_cluster, management_clusters: $management_clusters, platform_image: $platform_image}' \
     > cluster-iam.auto.tfvars.json
 
 # Import the existing CodeStar connection into terraform state so it can
@@ -460,13 +465,12 @@ read_required_terraform_output() {
 }
 
 # Export terraform outputs for provision-cluster-resources.sh
-PLATFORM_IMAGE=$(read_required_terraform_output platform_container_image)
 GITHUB_CONNECTION_ARN=$(read_required_terraform_output github_connection_arn)
 RC_CODEBUILD_ROLE_ARN=$(read_required_terraform_output rc_codebuild_role_arn)
 MC_CODEBUILD_ROLE_ARN=$(read_required_terraform_output mc_codebuild_role_arn)
 CODEPIPELINE_ROLE_ARN=$(read_required_terraform_output codepipeline_role_arn)
 PIPELINE_ARTIFACT_BUCKET=$(read_required_terraform_output codepipeline_artifact_bucket_name)
-export PLATFORM_IMAGE GITHUB_CONNECTION_ARN RC_CODEBUILD_ROLE_ARN
+export GITHUB_CONNECTION_ARN RC_CODEBUILD_ROLE_ARN
 export MC_CODEBUILD_ROLE_ARN CODEPIPELINE_ROLE_ARN PIPELINE_ARTIFACT_BUCKET
 export ENVIRONMENT="${TARGET_ENVIRONMENT}"
 export GITHUB_REPOSITORY="${GITHUB_REPOSITORY}"

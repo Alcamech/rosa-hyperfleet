@@ -203,6 +203,6 @@ resource "aws_iam_role_policy" "mc_codebuild_policy" {
           }
         }
       }
-    ] : [])
+    ] : [], local.platform_image_pull_statements)
   })
 }
