@@ -1,31 +1,37 @@
+# Example dev override: copy into .ephemeral-env/ and resync. It replaces the whole
+# default bundle, so it repeats the default RC grants and adds a read-only role in the
+# RC account.
+# @@AWS_ACCOUNT_ID@@ resolves to the RC account at deploy time; replace dev-readers
+# with your role. Customer accounts are allowlisted at runtime, not here.
 applications:
   regional-cluster:
     platformApi:
       authz:
         config: |
           formatVersion: 1
-          registeredAccounts: ["599476212575", "114594328247"]
+          registeredAccounts: ["@@AWS_ACCOUNT_ID@@"]
           policies:
-            - id: read-clusters-599476212575
-              ownerAccountID: "599476212575"
+            - id: rc-all-actions
+              ownerAccountID: "@@AWS_ACCOUNT_ID@@"
               content: |
                 permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "599476212575" && context.region == "us-east-1" }
+                when { context.accountId == "@@AWS_ACCOUNT_ID@@" }
                 unless { context.requestLabels.hasTag("authz-deny-probe") };
-            - id: read-clusters-114594328247
-              ownerAccountID: "114594328247"
+            - id: dev-read-only
+              ownerAccountID: "@@AWS_ACCOUNT_ID@@"
               content: |
-                permit(principal, action in Seaplane::Action::"AllActions", resource)
-                when { context.accountId == "114594328247" && context.region == "us-east-1" }
-                unless { context.requestLabels.hasTag("authz-deny-probe") };
+                permit(principal, action in Seaplane::Action::"ReadOnly", resource)
+                when { context.accountId == "@@AWS_ACCOUNT_ID@@" };
           attachments:
-            - id: dev-readers-599476212575
-              policyID: read-clusters-599476212575
-              principalARN: arn:aws:iam::599476212575:role/{{ aws.child_admin_role_name }}
-              scope: regional
-              region: us-east-1
-            - id: dev-readers-114594328247
-              policyID: read-clusters-114594328247
-              principalARN: arn:aws:iam::114594328247:role/{{ aws.child_admin_role_name }}
-              scope: regional
-              region: us-east-1
+            - id: rc-child-admin
+              policyID: rc-all-actions
+              principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:role/{{ aws.child_admin_role_name }}
+              scope: global
+            - id: rc-e2e-user
+              policyID: rc-all-actions
+              principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:user/e2e
+              scope: global
+            - id: dev-readers
+              policyID: dev-read-only
+              principalARN: arn:aws:iam::@@AWS_ACCOUNT_ID@@:role/dev-readers
+              scope: global

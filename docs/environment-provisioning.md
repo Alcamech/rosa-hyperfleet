@@ -213,6 +213,19 @@ terraform output -raw api_test_command
 
 ## Appendix
 
+### Allowlist additional accounts
+
+The authorization bundle enrolls only the RC account. To admit a customer account, call the Platform API with credentials for the RC account:
+
+```bash
+awscurl -X POST $API_GATEWAY_URL/api/v0/accounts \
+    --service execute-api --region <region> \
+    -H "Content-Type: application/json" \
+    -d '{"accountId": "<AWS_ACCOUNT_ID>"}'
+```
+
+> **Note:** The `API_GATEWAY_URL` can be obtained from `terraform output -raw api_gateway_invoke_url` in the regional cluster terraform config. The allowlist is temporary; see [Platform API authorization](platform-api-authorization.md#allowlist-an-account-sop).
+
 ### Trigger pipelines via CLI
 
 Pipelines are triggered automatically by Git pushes, but you can also trigger them manually. Requires Central account credentials.

@@ -38,14 +38,12 @@ That bundle denies everything.
 
 ## Enrollment and management clusters
 
-`config/defaults.yaml` enrolls the RC account and grants nothing:
-
-```yaml
-formatVersion: 1
-registeredAccounts: ["@@AWS_ACCOUNT_ID@@"]
-policies: []
-attachments: []
-```
+`config/defaults.yaml` holds the one bundle every environment uses. It enrolls
+the RC account and grants the identities behind `rrp-rc` (the child-admin role,
+`aws.child_admin_role_name`, and CI's `e2e` user) `AllActions` on the RC
+account's own resources, except requests tagged `authz-deny-probe`. It names no
+account ID. Customer accounts get no grants; allowlist them (see below). The e2e
+allowlists its customer account before the ROSA CLI tests.
 
 - `@@AWS_ACCOUNT_ID@@` and `@@AWS_REGION@@` resolve in Helm from
   `global.aws_account_id` and `global.aws_region`, because stable environments
@@ -57,28 +55,19 @@ attachments: []
   Existing entries are kept. `scripts/buildspec/register.sh` only waits for the
   RC API.
 
-## Ephemeral environments
+## Override the bundle in an ephemeral environment
 
-`config/ephemeral/defaults.yaml` serves CI and dev. It always enrolls the resolved
-RC account.
-
-- **CI** (`EPH_PREFIX` and `BUILD_ID` set): also grants `AllActions` in
-  `us-east-1` to the CI callers in `720644165472` and `313828097858`. Rendering
-  fails if the RC account is unresolved.
-- **Dev**: grants no customer access. Every customer e2e test then fails with 403.
-  The quickest fix is to allowlist your customer account (see below). To grant
-  specific roles instead, copy the example override before provisioning or
-  resyncing:
+To test other grants, copy the example override before provisioning or
+resyncing. It replaces the whole bundle: it repeats the default RC grants and adds a
+`ReadOnly` role (`dev-readers`, replace it with yours) in the RC account. It names
+no account ID; `@@AWS_ACCOUNT_ID@@` resolves to the RC account. Merge any
+existing overrides first.
 
 ```sh
 mkdir -p .ephemeral-env
 cp -n docs/examples/authz-dev/*.yaml .ephemeral-env/
 make ephemeral-resync ID=<id>
 ```
-
-The example enrolls RC `599476212575` and customer `114594328247` and grants each
-`OrganizationAccountAccessRole` `AllActions` in `us-east-1`. Merge any existing
-overrides first.
 
 ## Allowlist an account (SOP)
 
@@ -143,7 +132,6 @@ The Service exposes port `metrics` (9090) and the ServiceMonitor scrapes
 
 ```sh
 uv run scripts/test_render.py
-uv run scripts/test_ephemeral_authz.py
 ```
 
 Helm-backed tests require Helm on `PATH`.

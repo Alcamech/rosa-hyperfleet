@@ -2467,67 +2467,31 @@ def _assert_bundle_fields(bundle):
     assert bundle["formatVersion"] == 1
 
 
+def _assert_rc_grants(bundle, account, role):
+    # Every env grants the identities behind rrp-rc: the child-admin role and CI's e2e user.
+    assert [p["id"] for p in bundle["policies"]] == ["rc-all-actions"]
+    assert [a["principalARN"] for a in bundle["attachments"]] == [
+        f"arn:aws:iam::{account}:role/{role}", f"arn:aws:iam::{account}:user/e2e",
+    ]
+
+
 class TestAuthzDelivery:
-    @pytest.mark.parametrize("env,ci,eph_prefix", [
-        ("integration", False, ""), ("stage", False, ""),
-        ("ephemeral", False, ""), ("ephemeral", False, "authz-test"),
-        ("ephemeral", True, ""),
+    @pytest.mark.parametrize("env,ci,eph_prefix,role", [
+        ("integration", False, "", "OrganizationAccountAccessRole"),
+        ("stage", False, "", "rosa-seaplane-account-admin"),
+        ("ephemeral", False, "", "OrganizationAccountAccessRole"),
+        ("ephemeral", False, "authz-test", "OrganizationAccountAccessRole"),
+        ("ephemeral", True, "", "OrganizationAccountAccessRole"),
     ])
-    def test_safe_source_defaults(self, tmp_path, monkeypatch, env, ci, eph_prefix):
+    def test_safe_source_defaults(self, tmp_path, monkeypatch, env, ci, eph_prefix, role):
         monkeypatch.setenv("BUILD_ID", "test-ci" if ci else "")
         values = _authz_values(tmp_path, env, eph_prefix=eph_prefix)
         authz = values["platformApi"]["authz"]
         assert set(authz) == {"config"}
         bundle = yaml.safe_load(authz["config"])
         assert bundle["registeredAccounts"] == ["@@AWS_ACCOUNT_ID@@"]
-        assert bundle["policies"] == bundle["attachments"] == []
+        _assert_rc_grants(bundle, "@@AWS_ACCOUNT_ID@@", role)
         _assert_bundle_fields(bundle)
-
-    @pytest.mark.parametrize("ci,account_id,source_accounts", [
-        (False, "987654321098", ["987654321098"]),
-        (True, "987654321098", ["720644165472", "313828097858", "987654321098"]),
-        (True, "720644165472", ["720644165472", "313828097858"]),
-        (True, "313828097858", ["720644165472", "313828097858"]),
-    ])
-    def test_runtime_rc_enrollment(self, tmp_path, monkeypatch, ci, account_id, source_accounts):
-        monkeypatch.setenv("BUILD_ID", "test-ci" if ci else "")
-        overrides = {"aws": {"account_id": account_id}}
-        values = _authz_values(tmp_path, "ephemeral", overrides, eph_prefix="authz-test")
-        values["global"] = {"aws_account_id": account_id, "aws_region": "us-east-1"}
-        resources, _ = _helm_platform(tmp_path, values)
-        config = _resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"]
-        assert config == values["platformApi"]["authz"]["config"] + "\n"
-        bundle = yaml.safe_load(config)
-        _assert_bundle_fields(bundle)
-        assert bundle["registeredAccounts"] == source_accounts
-        if not ci:
-            assert bundle["policies"] == bundle["attachments"] == []
-            return
-        assert len(bundle["policies"]) == 2
-        assert len(bundle["attachments"]) == 4
-        for account, user, attachment in zip(
-            ["720644165472", "313828097858"], ["e2e", "rrp-hcp-customer"],
-            bundle["attachments"][2:], strict=True,
-        ):
-            assert attachment == {
-                "id": f"ci-e2e-{account}", "policyID": f"ci-read-clusters-{account}",
-                "principalARN": f"arn:aws:iam::{account}:user/{user}",
-                "scope": "regional", "region": "us-east-1",
-            }
-        for account, policy, attachment in zip(
-            ["720644165472", "313828097858"], bundle["policies"], bundle["attachments"][:2], strict=True,
-        ):
-            assert policy == {
-                "id": f"ci-read-clusters-{account}", "ownerAccountID": account,
-                "content": 'permit(principal, action in Seaplane::Action::"AllActions", resource)\n'
-                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }}\n'
-                           'unless { context.requestLabels.hasTag("authz-deny-probe") };\n',
-            }
-            assert attachment == {
-                "id": f"ci-readers-{account}", "policyID": policy["id"],
-                "principalARN": f"arn:aws:iam::{account}:role/OrganizationAccountAccessRole",
-                "scope": "regional", "region": "us-east-1",
-            }
 
     @pytest.mark.parametrize("principal,scope", [
         ("role", "regional"), ("session", "global"),
@@ -2556,31 +2520,21 @@ class TestAuthzDelivery:
         assert yaml.safe_load(config)["registeredAccounts"] == ([] if principal == "deny-all" else ["012345678901"])
 
     def test_dev_override(self, tmp_path):
+        # The example replaces the whole bundle and names no account; Helm supplies the RC account.
         overrides = load_yaml(AUTHZ_EXAMPLE / "defaults.yaml")
         assert load_yaml(AUTHZ_EXAMPLE / "us-east-1.yaml") == {"provision_mcs": {"mc01": {}}}
         values = _authz_values(tmp_path, "ephemeral", overrides)
-        values["global"] = {"aws_account_id": "599476212575", "aws_region": "us-east-1"}
+        values["global"] = {"aws_account_id": "012345678901", "aws_region": "us-east-1"}
         resources, _ = _helm_platform(tmp_path, values)
-        config = _resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"]
-        assert config == values["platformApi"]["authz"]["config"] + "\n"
-        bundle = yaml.safe_load(config)
+        bundle = yaml.safe_load(_resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"])
         _assert_bundle_fields(bundle)
-        assert bundle["registeredAccounts"] == ["599476212575", "114594328247"]
-        assert len(bundle["policies"]) == len(bundle["attachments"]) == 2
-        for account, policy, attachment in zip(
-            bundle["registeredAccounts"], bundle["policies"], bundle["attachments"], strict=True,
-        ):
-            assert policy == {
-                "id": f"read-clusters-{account}", "ownerAccountID": account,
-                "content": 'permit(principal, action in Seaplane::Action::"AllActions", resource)\n'
-                           f'when {{ context.accountId == "{account}" && context.region == "us-east-1" }}\n'
-                           'unless { context.requestLabels.hasTag("authz-deny-probe") };\n',
-            }
-            assert attachment == {
-                "id": f"dev-readers-{account}", "policyID": policy["id"],
-                "principalARN": f"arn:aws:iam::{account}:role/OrganizationAccountAccessRole",
-                "scope": "regional", "region": "us-east-1",
-            }
+        assert bundle["registeredAccounts"] == ["012345678901"]
+        assert [p["id"] for p in bundle["policies"]] == ["rc-all-actions", "dev-read-only"]
+        assert [a["principalARN"] for a in bundle["attachments"]] == [
+            "arn:aws:iam::012345678901:role/OrganizationAccountAccessRole",
+            "arn:aws:iam::012345678901:user/e2e",
+            "arn:aws:iam::012345678901:role/dev-readers",
+        ]
 
     @pytest.mark.parametrize("rate_enabled", [False, True])
     def test_mount_inputs_metrics(self, tmp_path, rate_enabled):
@@ -2668,12 +2622,9 @@ class TestRuntimeIdentityDelivery:
         values["global"] = {"aws_account_id": "012345678901", "aws_region": "us-east-1"}
         resources, _ = _helm_platform(tmp_path, values)
         bundle = yaml.safe_load(_resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"])
-        assert bundle == {
-            "formatVersion": 1,
-            "registeredAccounts": ["012345678901"],
-            "policies": [],
-            "attachments": [],
-        }
+        assert bundle["registeredAccounts"] == ["012345678901"]
+        _assert_rc_grants(bundle, "012345678901", "platform/Provisioner")
+        _assert_bundle_fields(bundle)
 
     @pytest.mark.parametrize("env", ["ephemeral", "integration", "stage"])
     def test_runtime_delivery(self, tmp_path, env):
@@ -2688,32 +2639,8 @@ class TestRuntimeIdentityDelivery:
         ).replace("@@AWS_REGION@@", "us-east-1") + "\n"
         bundle = yaml.safe_load(config)
         assert bundle["registeredAccounts"] == ["012345678901"]
-        assert bundle["policies"] == bundle["attachments"] == []
+        _assert_rc_grants(bundle, "012345678901", "rosa-seaplane-account-admin" if env == "stage" else "OrganizationAccountAccessRole")
         _assert_bundle_fields(bundle)
-
-    @pytest.mark.parametrize("ci", [False, True])
-    def test_custom_pool_grants(self, tmp_path, monkeypatch, ci):
-        monkeypatch.setenv("BUILD_ID", "test-ci" if ci else "")
-        values = _authz_values(tmp_path, "ephemeral", {
-            "aws": {"account_id": "012345678901", "child_admin_role_name": "team/CustomProvisioner"},
-        }, eph_prefix="custom-pool", region="eu-west-2")
-        assert "@@AWS_ACCOUNT_ID@@" not in values["platformApi"]["authz"]["config"]
-        resources, _ = _helm_platform(tmp_path, values)
-        bundle = yaml.safe_load(_resource(resources, "ConfigMap", "authz-config")["data"]["config.yaml"])
-        _assert_bundle_fields(bundle)
-        assert bundle["registeredAccounts"] == (
-            ["720644165472", "313828097858", "012345678901"] if ci else ["012345678901"]
-        )
-        assert len(bundle["policies"]) == (2 if ci else 0)
-        assert len(bundle["attachments"]) == (4 if ci else 0)
-        if ci:
-            assert bundle["attachments"][0]["principalARN"] == "arn:aws:iam::720644165472:role/team/CustomProvisioner"
-
-    @pytest.mark.parametrize("account", ["", "ssm:///account", "123", 123456789012, None])
-    def test_ci_needs_resolved_account(self, monkeypatch, account):
-        monkeypatch.setenv("BUILD_ID", "test-ci")
-        with pytest.raises(ValueError, match="CI ephemeral rendering requires a resolved 12-digit RC account"):
-            build_context({"aws": {"account_id": account}}, "ephemeral", "us-east-1", "preview")
 
     @pytest.mark.parametrize("field,invalid", [
         ("aws_account_id", ""), ("aws_account_id", None),
