@@ -161,7 +161,7 @@ function signedDelete(path) {
 export default function () {
   // Health check (lightweight, fast)
   {
-    const res = signedGet("/prod/v0/live");
+    const res = signedGet("/prod/api/v0/live");
     healthLatency.add(res.timings.duration);
     const ok = check(res, {
       "health: status 200": (r) => r.status === 200,
