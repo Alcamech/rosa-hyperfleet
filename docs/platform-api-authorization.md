@@ -17,9 +17,10 @@ Gateway path before shared rollout. This is unproven (ROSAENG-67493).
 ## Set the bundle
 
 Set `applications.regional-cluster.platformApi.authz.config` in
-`config/<environment>/defaults.yaml` or `config/<environment>/<region>.yaml`. The
-value is the complete bundle as a YAML string. An override replaces the whole
-bundle; nothing is merged.
+`config/defaults.yaml` for the default shared by all environments. Use
+`config/<environment>/defaults.yaml` or `config/<environment>/<region>.yaml` for
+environment- or region-specific overrides. The value is the complete bundle as a
+YAML string. An override replaces the whole bundle; nothing is merged.
 
 ```yaml
 applications:
