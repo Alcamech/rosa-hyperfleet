@@ -20,7 +20,7 @@ seaplane:
   helmValues:
     image:
       repository: quay.io/redhat-user-workloads/rosa-tenant/rosa-seaplane-operator
-      tag: "on-pr-763acba38ab8355a360f56e6dff546e83873e73a@sha256:090e50689c05c91c0abb9e5a5cb8ad59695518541e935b5b199f25e82848571e"
+      tag: "e6cb96b90c0618d0760c8e8f5ba3bfc248082952@sha256:ecbc10e6618c4bc40ee0b641f99c7cab34977f272dd1ce246e7f96620034fb00"
       pullPolicy: Always
 
     replicaCount: 2
