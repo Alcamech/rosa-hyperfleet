@@ -7,7 +7,7 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main" && ("ci/Containerfile".pathChanged() || ".tekton/rosa-seaplane-ci-*.yaml".pathChanged())
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main" && ("terraform/modules/platform-image/**".pathChanged() || ".tekton/rosa-seaplane-ci-*.yaml".pathChanged())
   labels:
     appstudio.openshift.io/application: rosa-seaplane-ci
     appstudio.openshift.io/component: rosa-seaplane-ci
@@ -25,11 +25,10 @@ spec:
   - name: build-platforms
     value:
     - linux/x86_64
-    - linux/arm64
   - name: dockerfile
-    value: ci/Containerfile
+    value: terraform/modules/platform-image/Dockerfile
   - name: path-context
-    value: .
+    value: terraform/modules/platform-image
   pipelineSpec:
     description: |
       This pipeline is ideal for building multi-arch container images from a Containerfile while maintaining trust after pipeline customization.
