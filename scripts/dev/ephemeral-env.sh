@@ -268,7 +268,7 @@ write_eph_container_config() {
     # If profiles are preset, mount the whole .aws dir — config, cred-helper,
     # and real_credentials all need to be present at the same absolute paths.
     if [[ -n "${RRP_AWS_PROFILES_PRESET:-}" ]]; then
-        _CONTAINER_AWS_FLAGS="-v ${HOME}/.aws:/home/agent/.aws:ro,z -e AWS_CONFIG_FILE=/home/agent/.aws/config"
+        _CONTAINER_AWS_FLAGS="-v ${HOME}/.aws:/home/agent/.aws:ro,z -e AWS_CONFIG_FILE=/home/agent/.aws/config $(container_aws_role_session_name_flags)"
         # Pass through TLS env vars if set in the caller's environment
         for _var in AWS_CA_BUNDLE REQUESTS_CA_BUNDLE SSL_CERT_FILE UV_NATIVE_TLS; do
             [[ -n "${!_var:-}" ]] && _CONTAINER_AWS_FLAGS="${_CONTAINER_AWS_FLAGS} -e ${_var}=${!_var}"
