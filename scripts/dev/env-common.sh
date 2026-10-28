@@ -11,6 +11,7 @@
 #   load_accounts         — Load account IDs from a JSON file (legacy flat format)
 #   load_accounts_stage   — Load account IDs from stage nested JSON format
 #   init_aws_config       — Create temp AWS config dir + EXIT trap
+#   container_aws_role_session_name_flags — podman -e for AWS_ROLE_SESSION_NAME in e2e containers
 #   write_container_config — Resolve profiles to static creds for container mount
 #   bastion_run_task      — Core ECS bastion task launch and readiness logic
 #   chain_exit_trap       — Chain a new EXIT handler with any existing trap
@@ -68,8 +69,9 @@ resolve_creds() {
 
     local creds creds_err
     creds_err=$(mktemp)
+    local session_name="${AWS_CI_ROLE_SESSION_NAME:-seaplane-e2e}"
     creds=$(AWS_ACCESS_KEY_ID="$_BASE_AK" AWS_SECRET_ACCESS_KEY="$_BASE_SK" AWS_SESSION_TOKEN="$_BASE_ST" \
-        aws sts assume-role --role-arn "$role_arn" --role-session-name "rrp-dev-$$" \
+        aws sts assume-role --role-arn "$role_arn" --role-session-name "$session_name" \
         --duration-seconds 3600 --output json 2>"$creds_err") \
         || { local err; err=$(<"$creds_err"); rm -f "$creds_err"; die "Failed to assume role $role_arn:\n$err"; }
     rm -f "$creds_err"
@@ -169,6 +171,13 @@ init_aws_config() {
     trap 'rm -rf "${_aws_config_dir:-}" "${_CONTAINER_CONFIG:-}"' EXIT
 }
 
+# Podman/Docker -e flags so in-container e2e (including ephemeral-zoa-e2e) use the
+# same stable RoleSessionName as CI (source ci/setup-aws-profiles.sh).
+container_aws_role_session_name_flags() {
+    local name="${AWS_CI_ROLE_SESSION_NAME:-seaplane-e2e}"
+    echo "-e AWS_ROLE_SESSION_NAME=${name}"
+}
+
 # Build a container-safe AWS config file with resolved static credentials.
 # credential_process won't work inside containers, so we resolve creds on the
 # host and write them as static keys into a temp config file for mounting.
@@ -198,7 +207,7 @@ region = ${region}
 EOF
     done
 
-    _CONTAINER_AWS_FLAGS="-v ${_CONTAINER_CONFIG}:/tmp/aws-config:ro,z -e AWS_CONFIG_FILE=/tmp/aws-config -e AWS_SHARED_CREDENTIALS_FILE=/dev/null"
+    _CONTAINER_AWS_FLAGS="-v ${_CONTAINER_CONFIG}:/tmp/aws-config:ro,z -e AWS_CONFIG_FILE=/tmp/aws-config -e AWS_SHARED_CREDENTIALS_FILE=/dev/null $(container_aws_role_session_name_flags)"
 }
 
 # Core ECS bastion task launch and readiness logic.
