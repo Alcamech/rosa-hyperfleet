@@ -34,7 +34,7 @@ locals {
   cluster_project_names    = concat(local.regional_project_names, local.management_project_names)
   # RC/MC CodeBuild projects pull the platform image from another account's ECR
   # with their service role, which needs pull access to its repository.
-  platform_image_pattern         = "^([0-9]{12})\\.dkr\\.ecr\\.([a-z0-9-]+)\\.amazonaws\\.com/([^:@]+)"
+  platform_image_pattern = "^([0-9]{12})\\.dkr\\.ecr\\.([a-z0-9-]+)\\.amazonaws\\.com/([^:@]+)"
   platform_image_repository_arns = [
     for parts in try([regex(local.platform_image_pattern, var.platform_image)], []) :
     "arn:${data.aws_partition.current.partition}:ecr:${parts[1]}:${parts[0]}:repository/${parts[2]}"
