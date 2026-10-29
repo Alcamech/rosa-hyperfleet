@@ -106,7 +106,7 @@ resource "null_resource" "mirror_lambda" {
       fi
 
       if ! command -v skopeo &>/dev/null; then
-        echo "[zoa] ERROR: skopeo not found. Rebuild platform image (re-run central-account-bootstrap)." >&2
+        echo "[zoa] ERROR: skopeo not found in the platform image." >&2
         exit 1
       fi
 

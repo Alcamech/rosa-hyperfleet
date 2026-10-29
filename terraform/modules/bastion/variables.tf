@@ -54,7 +54,7 @@ variable "log_collector_memory" {
 }
 
 variable "container_image" {
-  description = "Container image for the bastion task (from platform-image module)"
+  description = "Container image for the bastion task (the platform image)"
   type        = string
 }
 

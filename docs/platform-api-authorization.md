@@ -52,8 +52,8 @@ allowlists its customer account before the ROSA CLI tests.
 - ManagementClusters are not authorized through the bundle. platform-api
   registers each entry of `MANAGEMENT_CLUSTERS` (`id:account`, from the RC's
   `management_clusters`, delivered as `global.management_clusters`) on startup.
-  Existing entries are kept. `scripts/buildspec/register.sh` only waits for the
-  RC API.
+  Existing entries are kept. The RC pipeline waits for the RC API
+  (`scripts/buildspec/wait-for-regional-api.sh`) before provisioning completes.
 
 ## Override the bundle in an ephemeral environment
 

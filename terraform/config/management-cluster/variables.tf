@@ -8,7 +8,7 @@ variable "region" {
 }
 
 variable "container_image" {
-  description = "Public ECR image URI for platform container (used by bastion and ECS bootstrap)"
+  description = "Platform container image URI (used by bastion and ECS bootstrap)"
   type        = string
 }
 

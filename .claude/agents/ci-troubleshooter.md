@@ -317,7 +317,7 @@ Use `git show <commit>:<path>` (or Read for nightly/main) to understand the fail
 | `ci/ephemeral-provider/main.py`           | Orchestrates ephemeral provision and teardown |
 | `ci/e2e-tests.sh`                         | Runs the e2e test suite                       |
 | `ci/ephemeral-provider/orchestrator.py`   | Ephemeral environment lifecycle               |
-| `ci/ephemeral-provider/pipeline.py`       | Pipeline provisioner management               |
+| `ci/ephemeral-provider/codepipeline.py`   | CodePipeline execution management             |
 | `ci/ephemeral-provider/codebuild_logs.py` | CodeBuild log collection                      |
 | `ci/ephemeral-provider/aws.py`            | AWS utility functions                         |
 | `ci/ephemeral-provider/git.py`            | Git operations for CI branches                |
