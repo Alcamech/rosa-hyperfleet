@@ -23,13 +23,13 @@ The goal is to publish this model as a **shared, interactive webpage**, not stat
   honoring the DSL's `autoLayout` tuning (direction, rankSeparation, nodeSeparation) directly —
   Graphviz is a documented prerequisite for Lite itself, not just static export. The PlantUML
   export behind `make` / `make png` is a genuinely separate pipeline: it converts the DSL to
-  PlantUML text, which the external `plantuml` tool lays out via its *own*, independent Graphviz
+  PlantUML text, which the external `plantuml` tool lays out via its _own_, independent Graphviz
   invocation that doesn't read Structurizr's `autoLayout` values at all. That's why PNG/SVG
   positioning can differ from Lite/the published site — judge layout in Lite or `make static`.
 - **Hosting**: `structurizr-cli`'s `-format static` export (wired up as `make static`) renders the
   same interactive JS diagram viewer Lite uses (pan/zoom, click-through, tooltips) into plain
   HTML/CSS/JS with the workspace JSON embedded — no backend needed. That folder is what gets
-  published (e.g. GitHub Pages); `make lite` stays the *editing* tool. Gap: this export is
+  published (e.g. GitHub Pages); `make lite` stays the _editing_ tool. Gap: this export is
   diagrams-only, no documentation/ADR pages — revisit via
   [structurizr-site-generatr](https://github.com/avisi-cloud/structurizr-site-generatr) if wanted.
   See `README.md`'s "Sharing an interactive view" section.
@@ -114,7 +114,7 @@ Flag and explain (then offer the correct alternative) rather than silently compl
   `mc.hyperShiftOperator -> customerHostedCluster` are the two most load-bearing re-points.
   `!impliedRelationships true` (set in `workspace.dsl`) means re-pointing a relationship down to a
   component automatically keeps coarser views' arrows working — but when two distinct child
-  relationships would imply the *same* coarser arrow, only one survives (not a bug — the full
+  relationships would imply the _same_ coarser arrow, only one survives (not a bug — the full
   picture is visible at the level where the split exists). If you need both facts visible at a
   coarser level too, add an **explicit, non-implied** relationship there directly (bit us twice:
   once with the Helm/images vs. Terraform-modules split, once when ZOA's `mc -> rc.zoaDataStore`
@@ -129,7 +129,7 @@ Flag and explain (then offer the correct alternative) rather than silently compl
   SRE/ZOA and alerting/CI excluded on purpose, pending separate scoped views (now built — see ZOA
   views below; alerting still pending).
 - `views/rc-components.dsl` / `views/mc-components.dsl`: Component-level views for RC/MC, `include
-  *`, each excluding the other's ZOA slice and `sre` (kube-applier/HyperShift's `kubeApiServer`
+*`, each excluding the other's ZOA slice and `sre` (kube-applier/HyperShift's `kubeApiServer`
   stays included on MC's view — it's shared with the regular flow, not ZOA-exclusive).
   `exclude "customerAdmin -> rhSso"` in both — see the auto-layout lesson below.
 - `views/zoa-containers.dsl` / `views/zoa-components.dsl`: SRE/ZOA-scoped views. Break-glass and the
@@ -159,7 +159,7 @@ both elements stay visible via their other relationships, only the lopsided pull
 
 **Diagnostic order**: 1) check for a relationship-count/target-position mismatch first — usually
 fixable by excluding or re-scoping one relationship; 2) only reach for `group` once elements are
-*already* roughly adjacent. Confirmed empirically: `group` reliably renders only in views where the
+_already_ roughly adjacent. Confirmed empirically: `group` reliably renders only in views where the
 system in focus is a flat box (System Context) — once a view expands the system into its own
 boundary (Container/Component views), the group boundary doesn't render alongside it, in both the
 PlantUML export and Lite itself. The alternate `plantuml/c4plantuml` export style has no `group`
@@ -171,15 +171,15 @@ The authoritative source for _what exists_ is the ADRs in `docs/design/*.md`, no
 assumption. Read the relevant ADR before modelling a slice:
 
 | Topic                                | ADR(s)                                                                                                                                                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Customer API, control plane, state    | `regional-control-plane-architecture.md`, `rate-limiting-architecture.md`                                                                                                                                 |
-| Image build, provisioning, GitOps     | `pipeline-based-lifecycle.md`, `fully-private-eks-bootstrap.md`, `gitops-cluster-configuration.md`, `codebuild-optimization.md`                                                                           |
-| Desire distribution (operator -> MC)  | `kube-applier-architecture.md`                                                                                                                                                                            |
-| Observability                         | `monitoring-platform.md`, `thanos-metrics-infrastructure.md`, `logging-platform.md`, `alerting-architecture.md`, `infrastructure-logging.md`, `mc-metrics-remote-write.md`, `lifecycle-alert-silencing.md` |
-| Networking and identity               | `dns-architecture.md`, `regional-oidc-ownership.md`, `aws-iam-hosted-cluster-authentication.md`                                                                                                           |
-| Zero Operator Access (ZOA)            | `zoa-architecture.md`, `sre-ui-access.md`                                                                                                                                                                 |
-| Account provisioning                  | `regional-account-minting.md`                                                                                                                                                                             |
-| Node/compute                          | `karpenter-node-provisioning.md`, `fips-eks-compute.md`                                                                                                                                                   |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer API, control plane, state   | `regional-control-plane-architecture.md`, `rate-limiting-architecture.md`                                                                                                                                  |
+| Image build, provisioning, GitOps    | `pipeline-based-lifecycle.md`, `fully-private-eks-bootstrap.md`, `gitops-cluster-configuration.md`, `codebuild-optimization.md`                                                                            |
+| Desire distribution (operator -> MC) | `kube-applier-architecture.md`                                                                                                                                                                             |
+| Observability                        | `monitoring-platform.md`, `thanos-metrics-infrastructure.md`, `logging-platform.md`, `alerting-architecture.md`, `infrastructure-logging.md`, `mc-metrics-remote-write.md`, `lifecycle-alert-silencing.md` |
+| Networking and identity              | `dns-architecture.md`, `regional-oidc-ownership.md`, `aws-iam-hosted-cluster-authentication.md`                                                                                                            |
+| Zero Operator Access (ZOA)           | `zoa-architecture.md`, `sre-ui-access.md`                                                                                                                                                                  |
+| Account provisioning                 | `regional-account-minting.md`                                                                                                                                                                              |
+| Node/compute                         | `karpenter-node-provisioning.md`, `fips-eks-compute.md`                                                                                                                                                    |
 
 Also useful: the top-level `/Users/jmelisba/work/git/rosa-seaplane-c4-model/CLAUDE.md` (requires the
 **architect agent** to review changes under `docs/design/`), and `docs/README.md` / `docs/FAQ.md`.
