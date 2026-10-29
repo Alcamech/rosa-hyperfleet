@@ -1,15 +1,19 @@
 aws:
+  # Pipelines assume this role in the RC/MC child accounts. The newly minted
+  # Hyperfleet int accounts create rosa-seaplane-account-admin (via
+  # rosa-seaplane-internal account-bootstrap-roles), which already trusts the
+  # central codebuild roles, so pipelines use it instead of the Organizations role.
+  child_admin_role_name: rosa-seaplane-account-admin
   zoa_access_trusted_assumer_role_names:
     - OrganizationAccountAccessRole
-  # TEMP: integration is being recreated on the new Hyperfleet AWS accounts. App-interface
-  # already provisions the ZOA operator SAML role on rosa-hyperfleet-int-control, but RC
-  # apply still runs against the legacy pipeline central (rrp-int-control), so the
-  # suffix would reference a principal that does not exist there. Omit until central
-  # accounts and pipelines align; restore rosa-seaplane-zoa-operator-int soon.
-  zoa_access_trusted_assumer_role_name_suffixes: []
+  # The ZOA operator SAML role is provisioned by app-interface on the new
+  # Hyperfleet int central (rosa-hyperfleet-int-control); RC prefixes this suffix
+  # with the central account ID at apply time.
+  zoa_access_trusted_assumer_role_name_suffixes:
+    - rosa-seaplane-zoa-operator-int
 
 dns:
-  domain: int0.rosa.devshift.net
+  domain: int0.rosa.devshift.org
   create_environment_zone: true
 
 # Pin a specific AMI for all worker nodes (RC + MC), covering both the Karpenter
