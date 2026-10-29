@@ -45,25 +45,25 @@ aws:
   management_cluster_account_id: "ssm:///infra/{{ environment }}/{{ aws_region }}/{{ cluster_prefix }}/account_id"
   # @doc aws.child_admin_role_name Name of the IAM role the pipelines assume in RC/MC child accounts for state-bucket bootstrap (hop 1) and infra apply (hop 2). Defaults to the AWS Organizations role; override per environment to use a scoped day-2 role.
   # @used-by aws.child_admin_role_name _context
-  child_admin_role_name: "OrganizationAccountAccessRole"
+  child_admin_role_name: "rosa-seaplane-account-admin"
   # @doc aws.zoa_access_trusted_assumer_role_names Full IAM role names in the Central Account allowed to assume ZOA Access invoker roles in RC (exact string as in IAM, e.g. OrganizationAccountAccessRole). Optional in defaults; environments with ZOA Access set at least one name or suffix. IAM requires each principal to exist in central at RC apply.
   # @used-by aws.zoa_access_trusted_assumer_role_names _context
   zoa_access_trusted_assumer_role_names:
   - OrganizationAccountAccessRole
-  # TEMP: integration is being recreated on the new Hyperfleet AWS accounts. App-interface
-  # already provisions the ZOA operator SAML role on rosa-hyperfleet-int-control, but RC
-  # apply still runs against the legacy pipeline central (rrp-int-control), so the
-  # suffix would reference a principal that does not exist there. Omit until central
-  # accounts and pipelines align; restore rosa-seaplane-zoa-operator-int soon.
+  # The ZOA operator SAML role is provisioned by app-interface on the new
+  # Hyperfleet int central (rosa-hyperfleet-int-control); RC prefixes this suffix
+  # with the central account ID at apply time.
   # @doc aws.zoa_access_trusted_assumer_role_name_suffixes Suffix only (app-interface access role name field), not the full IAM role name. App-interface SAML roles in central are created as "<central_account_id>-<suffix>" so the account ID must not be hardcoded in git; RC Terraform prefixes each suffix with the central account ID from the aws.central provider at apply time. Optional in defaults; at least one name or suffix required per environment at apply. Only list suffixes for roles that exist in that environment's central account.
   # @used-by aws.zoa_access_trusted_assumer_role_name_suffixes _context
-  zoa_access_trusted_assumer_role_name_suffixes: []
+  zoa_access_trusted_assumer_role_name_suffixes:
+  - rosa-seaplane-zoa-operator-int
+
 
 dns:
   # @doc dns.domain Base domain for the environment. Must be set per environment. See config/ephemeral/defaults.yaml for how the ephemeral template selects between CI and dev account pools.
   # @used-by dns.domain pipeline-provisioner-inputs/terraform.json.j2
   # @used-by dns.domain pipeline-regional-cluster-inputs/terraform.json.j2
-  domain: "int0.rosa.devshift.net"
+  domain: "int0.rosa.devshift.org"
   # @doc dns.create_environment_zone Create the environment hosted zone in the central account. Set false to reuse an existing zone with pre-configured delegation.
   # @used-by dns.create_environment_zone pipeline-provisioner-inputs/terraform.json.j2
   create_environment_zone: true
