@@ -28,14 +28,14 @@ views/
 
 ## The current views
 
-| View             | Level     | What it shows                                                        |
-| ---------------- | --------- | ---------------------------------------------------------------------- |
-| `SystemContext`  | Context   | Seaplane as one system, its people, and the external systems          |
-| `Containers`     | Container | RC, MC, Customer Hosted Cluster — regular customer flow only          |
-| `RCComponents`   | Component | RC's internals: Platform API, Seaplane Operator, Postgres, ArgoCD, Alertmanager, etc. |
-| `MCComponents`   | Component | MC's internals: kube-applier, HyperShift Operator, ArgoCD              |
-| `ZOA`            | Container | How an SRE's audited operational action reaches RC or MC               |
-| `ZOAComponents`  | Component | RC's and MC's ZOA pieces side by side (Lambdas, the Boundary, etc.)    |
+| View            | Level     | What it shows                                                                         |
+| --------------- | --------- | ------------------------------------------------------------------------------------- |
+| `SystemContext` | Context   | Seaplane as one system, its people, and the external systems                          |
+| `Containers`    | Container | RC, MC, Customer Hosted Cluster — regular customer flow only                          |
+| `RCComponents`  | Component | RC's internals: Platform API, Seaplane Operator, Postgres, ArgoCD, Alertmanager, etc. |
+| `MCComponents`  | Component | MC's internals: kube-applier, HyperShift Operator, ArgoCD                             |
+| `ZOA`           | Container | How an SRE's audited operational action reaches RC or MC                              |
+| `ZOAComponents` | Component | RC's and MC's ZOA pieces side by side (Lambdas, the Boundary, etc.)                   |
 
 Published as an interactive static site at
 [openshift-online.github.io/rosa-seaplane/c4-model](https://openshift-online.github.io/rosa-seaplane/c4-model)
@@ -61,7 +61,7 @@ make clean      # remove generated .puml / .mmd / .svg / .png
 ### Sharing an interactive view without running Structurizr Lite
 
 `make lite` is great for editing (live reload, drag-to-position in Lite's layout engine), but it's a
-server you have to keep running. For just *sharing* the diagrams interactively (pan/zoom,
+server you have to keep running. For just _sharing_ the diagrams interactively (pan/zoom,
 double-click to navigate between views, tooltips), `structurizr-cli` has a built-in `-format static`
 export that needs none of that: it renders the same JS diagram viewer used by Lite/Cloud into a
 folder of plain HTML/CSS/JS with the workspace JSON embedded — no backend, no API calls out. `make
